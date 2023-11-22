@@ -62,6 +62,9 @@ def simple_tests(net: Mininet):
         net.iperf(hosts=host_tuple,l4Type='TCP')
         net.iperf(hosts=host_tuple,l4Type='UDP')
 
+def add_default_route(net: Mininet, host: str):
+    net[host].cmd('route add default gw 10.0.0.0 {}-eth0'.format(host))
+
 if __name__ == '__main__':
     setLogLevel('info')
     host_count = 0
@@ -82,8 +85,17 @@ if __name__ == '__main__':
         # dump_switch_information(net, switch.__str__())
     # dump_infos(net)
     # simple_tests(net)
+    for host in net.hosts:
+        add_default_route(net, host.__str__())
     CLI(net)
     net.stop()
 else:
     # Command to start CLI w/ topo only: sudo -E mn --mac --controller none --custom ~/vscode-workspaces/topo-1sw-Nhosts.py --topo simple_topo
     topos = {'simple_topo': (lambda: simple_topo())}
+
+# h1 env VSOMEIP_CONFIGURATION=/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/config/vsomeip-udp-service-mininet.json VSOMEIP_APPLICATION_NAME=service-sample /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/build/examples/notify-sample &
+# h2 env VSOMEIP_CONFIGURATION=/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/config/vsomeip-udp-client-mininet.json VSOMEIP_APPLICATION_NAME=client-sample /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/build/examples/subscribe-sample &
+
+# create_routing_root: Routing root @ /home/mehmet/vscode-workspaces/vsomeipvsomeip-0
+# create_local_server: Listening @ /home/mehmet/vscode-workspaces/vsomeipvsomeip-1277
+# application: client-sample configured as routing but other routing manager present. Won't instantiate routing
