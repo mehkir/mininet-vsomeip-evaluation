@@ -93,9 +93,5 @@ else:
     # Command to start CLI w/ topo only: sudo -E mn --mac --controller none --custom ~/vscode-workspaces/topo-1sw-Nhosts.py --topo simple_topo
     topos = {'simple_topo': (lambda: simple_topo())}
 
-# h1 env VSOMEIP_CONFIGURATION=/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/config/vsomeip-udp-service-mininet.json VSOMEIP_APPLICATION_NAME=service-sample /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/build/examples/notify-sample &
-# h2 env VSOMEIP_CONFIGURATION=/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/config/vsomeip-udp-client-mininet.json VSOMEIP_APPLICATION_NAME=client-sample /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/build/examples/subscribe-sample &
-
-# create_routing_root: Routing root @ /home/mehmet/vscode-workspaces/vsomeipvsomeip-0
-# create_local_server: Listening @ /home/mehmet/vscode-workspaces/vsomeipvsomeip-1277
-# application: client-sample configured as routing but other routing manager present. Won't instantiate routing
+# h1 env VSOMEIP_CONFIGURATION=/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/vsomeip-udp-service-mininet.json VSOMEIP_APPLICATION_NAME=service-sample /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/build/examples/notify-sample &
+# h2 env VSOMEIP_CONFIGURATION=/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/vsomeip-udp-client-mininet.json VSOMEIP_APPLICATION_NAME=client-sample /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/build/examples/subscribe-sample &
