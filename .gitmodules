@@ -1,4 +1,4 @@
 [submodule "vsomeip"]
 	path = vsomeip
 	url = gitarchserver:/home/git/Repositories/vsomeip-secured
-	branch = vanilla_no_auth
+	branch = multiple_services/dns_and_dane
