@@ -1,11 +1,12 @@
 {
+    "network" : "-h2",
     "unicast" : "10.0.0.2",
     "netmask" : "255.0.0.0",
     "logging" : 
     {
-        "level" : "debug",
-        "console" : "true",
-        "file" : { "enable" : "false", "path" : "/var/log/vsomeip.log" },
+        "level" : "trace",
+        "console" : "false",
+        "file" : { "enable" : "true", "path" : "/var/log/vsomeip-mininet-h2-subscriber.log" },
         "dlt" : "true"
     },
     "applications" :
@@ -39,6 +40,6 @@
         "request_response_delay" : "1500"
     },
 
-    "certificate-path" : "certificate-and-privatekey/client0x1343.cert.pem",
-    "private-key-path" : "certificate-and-privatekey/client0x1343.key.pem"
+    "certificate-path" : "/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/h1-minor=0x00000000-major=0x00-instance=0x0001-id=0x0001.cert.pem",
+    "private-key-path" : "/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/h1-minor=0x00000000-major=0x00-instance=0x0001-id=0x0001.key.pem"
 }
