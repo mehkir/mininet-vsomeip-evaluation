@@ -93,5 +93,10 @@ else:
     # Command to start CLI w/ topo only: sudo -E mn --mac --controller none --custom ~/vscode-workspaces/topo-1sw-Nhosts.py --topo simple_topo
     topos = {'simple_topo': (lambda: simple_topo())}
 
+# branch: working master
 # h1 env VSOMEIP_CONFIGURATION=/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/vsomeip-udp-service-mininet.json VSOMEIP_APPLICATION_NAME=service-sample /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/build/examples/notify-sample &
 # h2 env VSOMEIP_CONFIGURATION=/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/vsomeip-udp-client-mininet.json VSOMEIP_APPLICATION_NAME=client-sample /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/build/examples/subscribe-sample &
+
+# branch: multiple_services/dns_and_dane
+# h1 env VSOMEIP_CONFIGURATION=/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/vsomeip-udp-mininet-publisher.json VSOMEIP_APPLICATION_NAME=mininet-publisher /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/build/examples/mininet-publisher &
+# h2 env VSOMEIP_CONFIGURATION=/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/vsomeip-udp-mininet-subscriber.json VSOMEIP_APPLICATION_NAME=mininet-subscriber /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/build/examples/mininet-subscriber &
