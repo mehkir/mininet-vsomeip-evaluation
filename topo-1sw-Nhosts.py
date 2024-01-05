@@ -65,9 +65,48 @@ def simple_tests(net: Mininet):
 def add_default_route(net: Mininet, host: str):
     net[host].cmd('route add default gw 10.0.0.0 {}-eth0'.format(host))
 
+def start_dns_server(net: Mininet, dns_host_name: str):
+    dns_host = net[dns_host_name]
+    dns_host.cmd("sed -i -E 's/.* # mininet-host-ip/    ip-address: {} # mininet-host-ip/' /home/mehmet/vscode-workspaces/mininet-vsomeip/nsd/nsd.conf".format(dns_host.IP(intf=dns_host.defaultIntf())))
+    dns_host.cmd("sed -i -E 's/ns\.service\.         IN    A    .*/ns.service.         IN    A    {}/' /home/mehmet/vscode-workspaces/mininet-vsomeip/zones/service.zone".format(dns_host.IP(intf=dns_host.defaultIntf())))
+    dns_host.cmd('nsd-control-setup')
+    dns_host.cmd('nsd -c /home/mehmet/vscode-workspaces/mininet-vsomeip/nsd/nsd.conf')
+
+def stop_dns_server(net: Mininet, dns_host_name: str):
+    dns_host = net[dns_host_name]
+    dns_host.cmd('nsd-control stop')
+
+def start_subscribers(net: Mininet):
+    for host in net.hosts:
+        if host.__str__() != 'h1':
+            listening_interface_by_ip = host.IP(intf=host.defaultIntf())
+            host.cmd('cp /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/vsomeip-udp-mininet-subscriber.json /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{}.json'.format(host.__str__))
+            # network
+            # unicast
+            # logfile
+            # name
+            # id
+            # routing
+            # cert path
+            # private key path
+
+def start_publisher(net: Mininet):
+    host = net['h1']
+    listening_interface_by_ip = host.IP(intf=host.defaultIntf())
+    host.cmd('cp /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/vsomeip-udp-mininet-publisher.json /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{}.json'.format(host.__str__))
+    # network
+    # unicast
+    # logfile
+    # name
+    # id
+    # routing
+    # cert path
+    # private key path
+
 if __name__ == '__main__':
     setLogLevel('info')
-    host_count = 0
+    maximum_possible_hosts: int = 0xffff
+    host_count: int = 0
     if len(sys.argv) != 2:
         print("Usage: {} <host_count>".format(sys.argv[0]))
         print("Usage example: {} 3".format(sys.argv[0]))
@@ -76,7 +115,10 @@ if __name__ == '__main__':
     if host_count < 2:
         print("Please provide a host count greater 1")
         exit(1)
-    topo: simple_topo = simple_topo(n = host_count)
+    if host_count > maximum_possible_hosts:
+        print("Please provide a host count less or equal {}".format(maximum_possible_hosts))
+        exit(1)
+    topo: simple_topo = simple_topo(n = host_count+1)
     net: Mininet = Mininet(topo=topo, controller=None, link=TCLink)
     net.start()
     for switch in net.switches:
@@ -87,7 +129,11 @@ if __name__ == '__main__':
     # simple_tests(net)
     for host in net.hosts:
         add_default_route(net, host.__str__())
+    dns_host_name: str = "h{}".format(host_count+1)
+    start_dns_server(net, dns_host_name)
+    start_subscribers(net)
     CLI(net)
+    stop_dns_server(net, dns_host_name)
     net.stop()
 else:
     # Command to start CLI w/ topo only: sudo -E mn --mac --controller none --custom ~/vscode-workspaces/topo-1sw-Nhosts.py --topo simple_topo
