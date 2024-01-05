@@ -6,25 +6,25 @@
     {
         "level" : "trace",
         "console" : "false",
-        "file" : { "enable" : "false", "path" : "/var/log/vsomeip-mininet-h2-subscriber.log" },
+        "file" : { "enable" : "false", "path" : "/var/log/h2.log" },
         "dlt" : "true"
     },
     "applications" :
     [
         {
-            "name" : "mininet-subscriber",
+            "name" : "h2",
             "id" : "0x1343"
         }
     ],
     "clients" :
     [
         {
-            "service" : "0x0001",
-            "instance" : "0x0001",
+            "service" : "0x1234",
+            "instance" : "0x5678",
             "unreliable" : [ 40000, 40002 ]
         }
     ],
-    "routing" : "mininet-subscriber",
+    "routing" : "h2",
     "service-discovery" :
     {
         "enable" : "true",
@@ -35,7 +35,7 @@
         "initial_delay_max" : "100",
         "repetitions_base_delay" : "200",
         "repetitions_max" : "3",
-        "ttl" : "3",
+        "ttl" : "0xFFFFFF",
         "cyclic_offer_delay" : "2000",
         "request_response_delay" : "1500"
     },

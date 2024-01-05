@@ -6,56 +6,49 @@
     { 
         "level" : "trace",
         "console" : "false",
-        "file" : { "enable" : "false", "path" : "/var/log/vsomeip-mininet-h1-publisher.log" },
+        "file" : { "enable" : "false", "path" : "/var/log/h1.log" },
         "dlt" : "true"
     },
-    "applications" : 
+    "applications" :
     [
         {
-            "name" : "mininet-publisher",
+            "name" : "h1",
             "id" : "0x1277"
         }
     ],
     "services" :
     [
         {
-            "service" : "0x0001",
-            "instance" : "0x0001",
-            "unreliable" : "30501",
-            "multicast" :
-            {
-                "address" : "224.0.0.5",
-                "port" : "30502"
-            },
-            "events" : 
+            "service" : "0x1234",
+            "instance" : "0x5678",
+            "unreliable" : "30509",
+            "events" :
             [
                 {
-                    "event" : "0x0001",
+                    "event" : "0x8778",
                     "is_field" : "true",
-                    "update-cycle" : 2000
+                    "update-cycle" : 0
                 },
                 {
-                    "event" : "0x0002",
-                    "is_field" : "true",
-                    "update-cycle" : 2000
+                    "event" : "0x8779",
+                    "is_field" : "true"
                 }
             ],
             "eventgroups" :
             [
                 {
-                    "eventgroup" : "0x0001",
-                    "events" : [ "0x0001", "0x0002" ],
-                    "threshold" : 1,
+                    "eventgroup" : "0x4465",
+                    "events" : [ "0x8778", "0x8779" ],
                     "multicast" :
                     {
-                        "address" : "224.0.0.5",
-                        "port" : "30503"
+                        "address" : "224.225.226.233",
+                        "port" : "32344"
                     }
                 }
             ]
         }
     ],
-    "routing" : "mininet-publisher",
+    "routing" : "h1",
     "service-discovery" :
     {
         "enable" : "true",
@@ -66,11 +59,11 @@
         "initial_delay_max" : "100",
         "repetitions_base_delay" : "200",
         "repetitions_max" : "3",
-        "ttl" : "3",
+        "ttl" : "0xFFFFFF",
         "cyclic_offer_delay" : "2000",
         "request_response_delay" : "1500"
     },
 
-    "certificate-path" : "/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/h1-minor=0x00000000-major=0x00-instance=0x0001-id=0x0001.cert.pem",
-    "private-key-path" : "/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/h1-minor=0x00000000-major=0x00-instance=0x0001-id=0x0001.key.pem"
+    "certificate-path" : "/home/vsomeip/certificate/minor=0x00000000-major=0x00-instance=0x5678-id=0x1234.service.cert.pem",
+    "private-key-path" : "/home/vsomeip/certificate/minor=0x00000000-major=0x00-instance=0x5678-id=0x1234.service.key.pem"
 }
