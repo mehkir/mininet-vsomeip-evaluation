@@ -6,7 +6,7 @@
     { 
         "level" : "trace",
         "console" : "false",
-        "file" : { "enable" : "true", "path" : "/var/log/vsomeip-mininet-h1-publisher.log" },
+        "file" : { "enable" : "false", "path" : "/var/log/vsomeip-mininet-h1-publisher.log" },
         "dlt" : "true"
     },
     "applications" : 

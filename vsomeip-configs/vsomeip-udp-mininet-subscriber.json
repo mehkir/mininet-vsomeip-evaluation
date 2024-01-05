@@ -6,7 +6,7 @@
     {
         "level" : "trace",
         "console" : "false",
-        "file" : { "enable" : "true", "path" : "/var/log/vsomeip-mininet-h2-subscriber.log" },
+        "file" : { "enable" : "false", "path" : "/var/log/vsomeip-mininet-h2-subscriber.log" },
         "dlt" : "true"
     },
     "applications" :
