@@ -76,7 +76,7 @@ def stop_dns_server(net: Mininet, dns_host_name: str):
     dns_host = net[dns_host_name]
     dns_host.cmd('nsd-control stop')
 
-def create_subscriber_configs(host, dns_host_name: str):
+def create_subscriber_config(host, dns_host_name: str):
     host_name = host.__str__()
     if host_name != 'h1' and host_name != dns_host_name:
         subscriber_config_template = "/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/vsomeip-udp-mininet-subscriber.json"
@@ -140,7 +140,7 @@ if __name__ == '__main__':
     create_publisher_config(net)
     for host in net.hosts:
         add_default_route(net, host.__str__())
-        create_subscriber_configs(host, dns_host_name)
+        create_subscriber_config(host, dns_host_name)
     CLI(net)
     stop_dns_server(net, dns_host_name)
     # delete host configs
