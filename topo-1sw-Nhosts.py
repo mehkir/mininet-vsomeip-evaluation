@@ -76,14 +76,13 @@ def stop_dns_server(net: Mininet, dns_host_name: str):
     dns_host = net[dns_host_name]
     dns_host.cmd('nsd-control stop')
 
-def create_subscriber_configs(net: Mininet, dns_host_name: str):
-    for host in net.hosts:
-        host_name = host.__str__()
-        if host_name != 'h1' and host_name != dns_host_name:
-            subscriber_config_template = "/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/vsomeip-udp-mininet-subscriber.json"
-            host_config = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
-            host.cmd(f'cp {subscriber_config_template} {host_config}')
-            create_host_config(net, host_name, host_config)
+def create_subscriber_configs(host, dns_host_name: str):
+    host_name = host.__str__()
+    if host_name != 'h1' and host_name != dns_host_name:
+        subscriber_config_template = "/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/vsomeip-udp-mininet-subscriber.json"
+        host_config = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
+        host.cmd(f'cp {subscriber_config_template} {host_config}')
+        create_host_config(host, host_config)
             # cert path
             # private key path
 
@@ -93,12 +92,12 @@ def create_publisher_config(net: Mininet):
     publisher_config_template = "/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/vsomeip-udp-mininet-publisher.json"
     host_config = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
     host.cmd(f'cp {publisher_config_template} {host_config}')
-    create_host_config(net, host_name, host_config)
+    create_host_config(host, host_config)
     # cert path
     # private key path
 
-def create_host_config(net: Mininet, host_name: str, host_config: str):
-    host = net[host_name]
+def create_host_config(host, host_config: str):
+    host_name = host.__str__()
     unicast_ip = host.IP(intf=host.defaultIntf())
     host.cmd(f"sed -i -E 's/    \"network\" : .*,/    \"network\" : \"-{host_name}\",/' {host_config}")
     host.cmd(f"sed -i -E 's/    \"unicast\" : .*,/    \"unicast\" : \"{unicast_ip}\",/' {host_config}")
@@ -107,6 +106,9 @@ def create_host_config(net: Mininet, host_name: str, host_config: str):
     host_id = "0x{:04x}".format(int(host.__str__()[1:]))
     host.cmd(f"sed -i -E 's/            \"id\" : .*/            \"id\" : \"{host_id}\"/' {host_config}")
     host.cmd(f"sed -i -E 's/    \"routing\" : .*,/    \"routing\" : \"{host_name}\",/' {host_config}")
+
+def build_vsomeip():
+    subprocess.run("/home/mehmet/vscode-workspaces/mininet-vsomeip/build_vsomeip.bash")
 
 if __name__ == '__main__':
     setLogLevel('info')
@@ -123,6 +125,7 @@ if __name__ == '__main__':
     if host_count > maximum_possible_hosts:
         print("Please provide a host count less or equal {}".format(maximum_possible_hosts))
         exit(1)
+    build_vsomeip()
     topo: simple_topo = simple_topo(n = host_count+1)
     net: Mininet = Mininet(topo=topo, controller=None, link=TCLink)
     net.start()
@@ -132,12 +135,12 @@ if __name__ == '__main__':
         # dump_switch_information(net, switch.__str__())
     # dump_infos(net)
     # simple_tests(net)
-    for host in net.hosts:
-        add_default_route(net, host.__str__())
     dns_host_name: str = "h{}".format(host_count+1)
     start_dns_server(net, dns_host_name)
     create_publisher_config(net)
-    create_subscriber_configs(net, dns_host_name)
+    for host in net.hosts:
+        add_default_route(net, host.__str__())
+        create_subscriber_configs(host, dns_host_name)
     CLI(net)
     stop_dns_server(net, dns_host_name)
     # delete host configs
