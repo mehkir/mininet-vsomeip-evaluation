@@ -20,6 +20,13 @@ from mininet.log import setLogLevel
 from mininet.util import dumpNodeConnections
 from mininet.util import dumpNetConnections
 
+SERVICE_ID = 1234
+INSTANCE_ID = 5678
+MAJOR_VERSION = 0
+MINOR_VERSION = 0
+PUBLISHER_PORT = 30509
+SUBSCRIBER_PORTS = "40000,40002"
+
 class simple_topo( Topo ):
     "Simple topology example."
 
