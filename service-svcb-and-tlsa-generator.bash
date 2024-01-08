@@ -96,11 +96,11 @@ if [[ $# -gt 6 ]]; then
 
     FILE_NAME=$(printf "minor=%s-major=%s-instance=%s-id=%s" "$dns_minor" "$dns_major" "$dns_instance" "$dns_service")
     cd ${CERTIFICATES_FOLDER_PATH}
-    openssl req -config <(echo "$CERTIFICATE_CONF") -new -x509 -sha256 -newkey rsa:2048 -nodes -keyout "${FILE_NAME}.key.pem" -days 365 -out "${FILE_NAME}.cert.pem" 2>/dev/null
+    openssl req -config <(echo "$CERTIFICATE_CONF") -new -x509 -sha256 -newkey rsa:2048 -nodes -keyout "${FILE_NAME}.service.key.pem" -days 365 -out "${FILE_NAME}.service.cert.pem" 2>/dev/null
 
     echo $(printf "; TLSA record for minor=%s major=%s instance=%s id=%s\n" "$dns_minor" "$dns_major" "$dns_instance" "$dns_service") >> $ZONE_FILE_PATH
     echo $(printf "_someip.minor%s.major%s.instance%s.id%s.service. IN TLSA 3 0 0 (" "$dns_minor" "$dns_major" "$dns_instance" "$dns_service") >> $ZONE_FILE_PATH
-    openssl x509 -in "${FILE_NAME}.cert.pem" -inform PEM -outform DER | xxd -p | sed -E 's/^/    /' >> $ZONE_FILE_PATH
+    openssl x509 -in "${FILE_NAME}.service.cert.pem" -inform PEM -outform DER | xxd -p | sed -E 's/^/    /' >> $ZONE_FILE_PATH
     echo $(printf ")") >> $ZONE_FILE_PATH
 else
     printUsage
