@@ -63,12 +63,14 @@ def simple_tests(net: Mininet):
         net.iperf(hosts=host_tuple,l4Type='UDP')
 
 def add_default_route(net: Mininet, host_name: str):
-    net[host_name].cmd('route add default gw 10.0.0.0 {}-eth0'.format(host_name))
+    net[host_name].cmd(f'route add default gw 10.0.0.0 {host_name}-eth0')
 
 def start_dns_server(net: Mininet, dns_host_name: str):
     dns_host = net[dns_host_name]
-    dns_host.cmd("sed -i -E 's/.* # mininet-host-ip/    ip-address: {} # mininet-host-ip/' /home/mehmet/vscode-workspaces/mininet-vsomeip/nsd/nsd.conf".format(dns_host.IP(intf=dns_host.defaultIntf())))
-    dns_host.cmd("sed -i -E 's/ns\.service\.         IN    A    .*/ns.service.         IN    A    {}/' /home/mehmet/vscode-workspaces/mininet-vsomeip/zones/service.zone".format(dns_host.IP(intf=dns_host.defaultIntf())))
+    dns_host_ip = dns_host.IP(intf=dns_host.defaultIntf())
+    dns_host.cmd(f"sed -i -E 's/.* # mininet-host-ip/    ip-address: {dns_host_ip} # mininet-host-ip/' /home/mehmet/vscode-workspaces/mininet-vsomeip/nsd/nsd.conf")
+    dns_host.cmd(f"sed -i -E 's/ns\.service\.         IN    A    .*/ns.service.         IN    A    {dns_host_ip}/' /home/mehmet/vscode-workspaces/mininet-vsomeip/zones/service.zone")
+    dns_host.cmd(f"sed -i -E 's/ns\.client\.         IN    A    .*/ns.client.         IN    A    {dns_host_ip}/' /home/mehmet/vscode-workspaces/mininet-vsomeip/zones/client.zone")
     dns_host.cmd('nsd-control-setup')
     dns_host.cmd('nsd -c /home/mehmet/vscode-workspaces/mininet-vsomeip/nsd/nsd.conf')
 
@@ -76,15 +78,14 @@ def stop_dns_server(net: Mininet, dns_host_name: str):
     dns_host = net[dns_host_name]
     dns_host.cmd('nsd-control stop')
 
-def create_subscriber_config(host, dns_host_name: str):
+def create_subscriber_config(host):
     host_name = host.__str__()
-    if host_name != 'h1' and host_name != dns_host_name:
-        subscriber_config_template = "/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/vsomeip-udp-mininet-subscriber.json"
-        host_config = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
-        host.cmd(f'cp {subscriber_config_template} {host_config}')
-        create_host_config(host, host_config)
-            # cert path
-            # private key path
+    subscriber_config_template = "/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/vsomeip-udp-mininet-subscriber.json"
+    host_config = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
+    host.cmd(f'cp {subscriber_config_template} {host_config}')
+    create_host_config(host, host_config)
+    # cert path
+    # private key path
 
 def create_publisher_config(net: Mininet):
     host = net['h1']
@@ -107,8 +108,22 @@ def create_host_config(host, host_config: str):
     host.cmd(f"sed -i -E 's/            \"id\" : .*/            \"id\" : \"{host_id}\"/' {host_config}")
     host.cmd(f"sed -i -E 's/    \"routing\" : .*,/    \"routing\" : \"{host_name}\",/' {host_config}")
 
+def start_someip_subscriber_app(host):
+    host_name = host.__str__()
+    host.cmd(f"env VSOMEIP_CONFIGURATION=/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json  VSOMEIP_APPLICATION_NAME={host_name} /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/build/examples/my-subscriber &")
+
+def start_someip_publisher_app(host):
+    host_name = host.__str__()
+    host.cmd(f"env VSOMEIP_CONFIGURATION=/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json  VSOMEIP_APPLICATION_NAME={host_name} /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/build/examples/my-publisher &")
+
+def stop_subscriber_app(host):
+    host.cmd("pkill my-subscriber")
+
+def stop_publisher_app(host):
+    host.cmd("pkill my-publisher")
+
 def build_vsomeip():
-    subprocess.run("/home/mehmet/vscode-workspaces/mininet-vsomeip/build_vsomeip.bash")
+    subprocess.run(["su", "-", "mehmet", "-c", "/home/mehmet/vscode-workspaces/mininet-vsomeip/build_vsomeip.bash"])
 
 if __name__ == '__main__':
     setLogLevel('info')
@@ -140,13 +155,21 @@ if __name__ == '__main__':
     create_publisher_config(net)
     for host in net.hosts:
         add_default_route(net, host.__str__())
-        create_subscriber_config(host, dns_host_name)
+        host_name = host.__str__()
+        if host_name != 'h1' and host_name != dns_host_name:
+            create_subscriber_config(host)
+            start_someip_subscriber_app(host)
+    start_someip_publisher_app(net['h1'])
     CLI(net)
     stop_dns_server(net, dns_host_name)
-    # delete host configs
+    # stop vsomeip apps and delete host configs
     for host in net.hosts:
         host_name: str = host.__str__()
         if host_name != dns_host_name:
+            if host_name != 'h1':
+                stop_subscriber_app(host)
+            else:
+                stop_publisher_app(host)
             host_config: str = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
             host.cmd(f'rm {host_config}')
     net.stop()
