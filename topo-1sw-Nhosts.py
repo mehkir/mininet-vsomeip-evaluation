@@ -26,6 +26,7 @@ MAJOR_VERSION = 0
 MINOR_VERSION = 0
 PUBLISHER_PORT = 30509
 SUBSCRIBER_PORTS = "40000,40002"
+PROTOCOL = "UDP"
 
 class simple_topo( Topo ):
     "Simple topology example."
@@ -91,8 +92,6 @@ def create_subscriber_config(host):
     host_config = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
     host.cmd(f'cp {subscriber_config_template} {host_config}')
     create_host_config(host, host_config)
-    # cert path
-    # private key path
 
 def create_publisher_config(host):
     host_name = host.__str__()
@@ -100,14 +99,6 @@ def create_publisher_config(host):
     host_config = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
     host.cmd(f'cp {publisher_config_template} {host_config}')
     create_host_config(host, host_config)
-    # cert path
-    # private key path
-
-def create_client_certificate(host):
-    pass
-
-def create_service_certificate(host):
-    pass
 
 def create_host_config(host, host_config: str):
     host_name = host.__str__()
@@ -119,6 +110,27 @@ def create_host_config(host, host_config: str):
     host_id = "0x{:04x}".format(int(host.__str__()[1:]))
     host.cmd(f"sed -i -E 's/            \"id\" : .*/            \"id\" : \"{host_id}\"/' {host_config}")
     host.cmd(f"sed -i -E 's/    \"routing\" : .*,/    \"routing\" : \"{host_name}\",/' {host_config}")
+
+def create_client_certificate(host):
+    host_name = host.__str__()
+    host_id = int(host_name[1:])
+    host_ip = host.IP(intf=host.defaultIntf())
+    host_config = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
+    subprocess.run(["su", "-", "mehmet", "-c", "/home/mehmet/vscode-workspaces/mininet-vsomeip/client-svcb-and-tlsa-generator.bash", host_id, SERVICE_ID, INSTANCE_ID, MAJOR_VERSION, host_ip, SUBSCRIBER_PORTS, PROTOCOL, host_name])
+    certificate_path = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/{host_name}.client.cert.pem"
+    private_key_path = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/{host_name}.client.key.pem"
+    host.cmd(f"sed -i -E 's/    \"certificate-path\" : .*,/    \"certificate-path\" : \"{certificate_path}\",/' {host_config}")
+    host.cmd(f"sed -i -E 's/    \"private-key-path\" : .*,/    \"private-key-path\" : \"{private_key_path}\",/' {host_config}")
+
+def create_service_certificate(host):
+    host_name = host.__str__()
+    host_ip = host.IP(intf=host.defaultIntf())
+    host_config = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
+    subprocess.run(["su", "-", "mehmet", "-c", "/home/mehmet/vscode-workspaces/mininet-vsomeip/service-svcb-and-tlsa-generator.bash", SERVICE_ID, INSTANCE_ID, MAJOR_VERSION, MINOR_VERSION, host_ip, PUBLISHER_PORT, PROTOCOL, host_name])
+    certificate_path = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/{host_name}.service.cert.pem"
+    private_key_path = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/{host_name}.service.key.pem"
+    host.cmd(f"sed -i -E 's/    \"certificate-path\" : .*,/    \"certificate-path\" : \"{certificate_path}\",/' {host_config}")
+    host.cmd(f"sed -i -E 's/    \"private-key-path\" : .*,/    \"private-key-path\" : \"{private_key_path}\",/' {host_config}")
 
 def start_someip_subscriber_app(host):
     host_name = host.__str__()
