@@ -3,7 +3,7 @@
 printUsage() {
     printf "This tool generates svcb and tlsa entries for SOME/IP clients.\n"
     printf "Usage: $0 <client id> <service id> <instance id> <major version> <ip address> <ports> <protocol> <file name>\n"
-    printf "Example: $0 1 2 3 4 5 172.17.0.3 40000,40002 UDP h2\n"
+    printf "Example: $0 1 2 3 4 172.17.0.3 40000,40002 UDP h2\n"
 }
 
 if [[ $# -gt 7 ]]; then
