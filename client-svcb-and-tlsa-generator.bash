@@ -2,11 +2,11 @@
 
 printUsage() {
     printf "This tool generates svcb and tlsa entries for SOME/IP clients.\n"
-    printf "Usage: $0 <client id> <service id> <instance id> <major version> <ip address> <ports> <protocol>\n"
-    printf "Example: $0 1 2 3 4 5 172.17.0.3 40000,40002 UDP\n"
+    printf "Usage: $0 <client id> <service id> <instance id> <major version> <ip address> <ports> <protocol> <file name>\n"
+    printf "Example: $0 1 2 3 4 5 172.17.0.3 40000,40002 UDP h2\n"
 }
 
-if [[ $# -gt 6 ]]; then
+if [[ $# -gt 7 ]]; then
     PROJECT_FOLDER_PATH="/home/mehmet/vscode-workspaces/mininet-vsomeip"
     ZONE_FILE_PATH="${PROJECT_FOLDER_PATH}/zones/client.zone"
     CERTIFICATES_FOLDER_PATH="${PROJECT_FOLDER_PATH}/certificates"
@@ -17,6 +17,7 @@ if [[ $# -gt 6 ]]; then
     ip_address=$5
     port_numbers=$6
     protocol_id=$7
+    file_name=$8
 
     case $protocol_id in
         'UDP')
@@ -90,13 +91,12 @@ if [[ $# -gt 6 ]]; then
     IP.1   = ${ip_address}
     email.1  = mehmet.mueller@haw-hamburg.de"
 
-    FILE_NAME=$(printf "major=%s-instance=%s-service=%s-id=%s" "$dns_major" "$dns_instance" "$dns_service" "$dns_client")
     cd ${CERTIFICATES_FOLDER_PATH}
-    openssl req -config <(echo "$CERTIFICATE_CONF") -new -x509 -sha256 -newkey rsa:2048 -nodes -keyout "${FILE_NAME}.client.key.pem" -days 365 -out "${FILE_NAME}.client.cert.pem" 2>/dev/null
+    openssl req -config <(echo "$CERTIFICATE_CONF") -new -x509 -sha256 -newkey rsa:2048 -nodes -keyout "${file_name}.client.key.pem" -days 365 -out "${file_name}.client.cert.pem" 2>/dev/null
 
     echo $(printf "; TLSA record for major=%s instance=%s service=%s id=%s\n" "$dns_major" "$dns_instance" "$dns_service" "$dns_client") >> $ZONE_FILE_PATH
     echo $(printf "_someip.major%s.instance%s.service%s.id%s.client. IN TLSA 3 0 0 (" "$dns_major" "$dns_instance" "$dns_service" "$dns_client") >> $ZONE_FILE_PATH
-    openssl x509 -in "${FILE_NAME}.client.cert.pem" -inform PEM -outform DER | xxd -p | sed -E 's/^/    /' >> $ZONE_FILE_PATH
+    openssl x509 -in "${file_name}.client.cert.pem" -inform PEM -outform DER | xxd -p | sed -E 's/^/    /' >> $ZONE_FILE_PATH
     echo $(printf ")") >> $ZONE_FILE_PATH
 else
     printUsage
