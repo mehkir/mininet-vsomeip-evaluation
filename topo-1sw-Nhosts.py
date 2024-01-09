@@ -20,11 +20,11 @@ from mininet.log import setLogLevel
 from mininet.util import dumpNodeConnections
 from mininet.util import dumpNetConnections
 
-SERVICE_ID = 1234
-INSTANCE_ID = 5678
-MAJOR_VERSION = 0
-MINOR_VERSION = 0
-PUBLISHER_PORT = 30509
+SERVICE_ID = "1234"
+INSTANCE_ID = "5678"
+MAJOR_VERSION = "0"
+MINOR_VERSION = "0"
+PUBLISHER_PORT = "30509"
 SUBSCRIBER_PORTS = "40000,40002"
 PROTOCOL = "UDP"
 
@@ -70,11 +70,11 @@ def simple_tests(net: Mininet):
         net.iperf(hosts=host_tuple,l4Type='TCP')
         net.iperf(hosts=host_tuple,l4Type='UDP')
 
-def add_default_route(net: Mininet, host_name: str):
-    net[host_name].cmd(f'route add default gw 10.0.0.0 {host_name}-eth0')
+def add_default_route(host):
+    host_name = host.__str__()
+    host.cmd(f'route add default gw 10.0.0.0 {host_name}-eth0')
 
-def start_dns_server(net: Mininet, dns_host_name: str):
-    dns_host = net[dns_host_name]
+def start_dns_server(dns_host):
     dns_host_ip = dns_host.IP(intf=dns_host.defaultIntf())
     dns_host.cmd(f"sed -i -E 's/.* # mininet-host-ip/    ip-address: {dns_host_ip} # mininet-host-ip/' /home/mehmet/vscode-workspaces/mininet-vsomeip/nsd/nsd.conf")
     dns_host.cmd(f"sed -i -E 's/ns\.service\.         IN    A    .*/ns.service.         IN    A    {dns_host_ip}/' /home/mehmet/vscode-workspaces/mininet-vsomeip/zones/service.zone")
@@ -82,8 +82,7 @@ def start_dns_server(net: Mininet, dns_host_name: str):
     dns_host.cmd('nsd-control-setup')
     dns_host.cmd('nsd -c /home/mehmet/vscode-workspaces/mininet-vsomeip/nsd/nsd.conf')
 
-def stop_dns_server(net: Mininet, dns_host_name: str):
-    dns_host = net[dns_host_name]
+def stop_dns_server(dns_host):
     dns_host.cmd('nsd-control stop')
 
 def create_subscriber_config(host):
@@ -113,24 +112,27 @@ def create_host_config(host, host_config: str):
 
 def create_client_certificate(host):
     host_name = host.__str__()
-    host_id = int(host_name[1:])
+    host_id = str(host_name[1:])
     host_ip = host.IP(intf=host.defaultIntf())
     host_config = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
-    subprocess.run(["su", "-", "mehmet", "-c", "/home/mehmet/vscode-workspaces/mininet-vsomeip/client-svcb-and-tlsa-generator.bash", host_id, SERVICE_ID, INSTANCE_ID, MAJOR_VERSION, host_ip, SUBSCRIBER_PORTS, PROTOCOL, host_name])
-    certificate_path = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/{host_name}.client.cert.pem"
-    private_key_path = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/{host_name}.client.key.pem"
+    host.cmd(f'/home/mehmet/vscode-workspaces/mininet-vsomeip/client-svcb-and-tlsa-generator.bash {host_id} {SERVICE_ID} {INSTANCE_ID} {MAJOR_VERSION} {host_ip} {SUBSCRIBER_PORTS} {PROTOCOL} {host_name}')
+    certificate_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/{host_name}.client.cert.pem"
+    private_key_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/{host_name}.client.key.pem"
     host.cmd(f"sed -i -E 's/    \"certificate-path\" : .*,/    \"certificate-path\" : \"{certificate_path}\",/' {host_config}")
-    host.cmd(f"sed -i -E 's/    \"private-key-path\" : .*,/    \"private-key-path\" : \"{private_key_path}\",/' {host_config}")
+    host.cmd(f"sed -i -E 's/    \"private-key-path\" : .*/    \"private-key-path\" : \"{private_key_path}\"/' {host_config}")
 
 def create_service_certificate(host):
     host_name = host.__str__()
     host_ip = host.IP(intf=host.defaultIntf())
     host_config = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
-    subprocess.run(["su", "-", "mehmet", "-c", "/home/mehmet/vscode-workspaces/mininet-vsomeip/service-svcb-and-tlsa-generator.bash", SERVICE_ID, INSTANCE_ID, MAJOR_VERSION, MINOR_VERSION, host_ip, PUBLISHER_PORT, PROTOCOL, host_name])
-    certificate_path = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/{host_name}.service.cert.pem"
-    private_key_path = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/{host_name}.service.key.pem"
+    host.cmd(f'/home/mehmet/vscode-workspaces/mininet-vsomeip/service-svcb-and-tlsa-generator.bash {SERVICE_ID} {INSTANCE_ID} {MAJOR_VERSION} {MINOR_VERSION} {host_ip} {PUBLISHER_PORT} {PROTOCOL} {host_name}')
+    certificate_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/{host_name}.service.cert.pem"
+    private_key_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/{host_name}.service.key.pem"
     host.cmd(f"sed -i -E 's/    \"certificate-path\" : .*,/    \"certificate-path\" : \"{certificate_path}\",/' {host_config}")
-    host.cmd(f"sed -i -E 's/    \"private-key-path\" : .*,/    \"private-key-path\" : \"{private_key_path}\",/' {host_config}")
+    host.cmd(f"sed -i -E 's/    \"private-key-path\" : .*/    \"private-key-path\" : \"{private_key_path}\"/' {host_config}")
+
+def reset_zone_files():
+    subprocess.run(["su", "-", "mehmet", "-c", "/home/mehmet/vscode-workspaces/mininet-vsomeip/reset-zone-file.bash"])
 
 def start_someip_subscriber_app(host):
     host_name = host.__str__()
@@ -154,15 +156,15 @@ if __name__ == '__main__':
     maximum_possible_hosts: int = 0xffff
     host_count: int = 0
     if len(sys.argv) != 2:
-        print("Usage: {} <host_count>".format(sys.argv[0]))
-        print("Usage example: {} 3".format(sys.argv[0]))
+        print(f"Usage: {sys.argv[0]} <host_count>")
+        print(f"Usage example: {sys.argv[0]} 3")
         exit(1)
     host_count: int = int(sys.argv[1])
     if host_count < 2:
         print("Please provide a host count greater 1")
         exit(1)
     if host_count > maximum_possible_hosts:
-        print("Please provide a host count less or equal {}".format(maximum_possible_hosts))
+        print(f"Please provide a host count less or equal {maximum_possible_hosts}")
         exit(1)
     build_vsomeip()
     topo: simple_topo = simple_topo(n = host_count+1)
@@ -174,26 +176,36 @@ if __name__ == '__main__':
         # dump_switch_information(net, switch.__str__())
     # dump_infos(net)
     # simple_tests(net)
-    dns_host_name: str = "h{}".format(host_count+1)
-    start_dns_server(net, dns_host_name)
+    dns_host_name: str = f"h{host_count+1}"
     create_publisher_config(net['h1'])
+    create_service_certificate(net['h1'])
     for host in net.hosts:
-        add_default_route(net, host.__str__())
+        add_default_route(host)
         host_name = host.__str__()
         if host_name != 'h1' and host_name != dns_host_name:
             create_subscriber_config(host)
-            start_someip_subscriber_app(host)
-    start_someip_publisher_app(net['h1'])
+            create_client_certificate(host)
+    reset_zone_files()
+    start_dns_server(net[dns_host_name])
+    for host in net.hosts:
+        host_name = host.__str__()
+        # if host_name != 'h1' and host_name != dns_host_name:
+        #     start_someip_subscriber_app(host)
+    # start_someip_publisher_app(net['h1'])
     CLI(net)
-    stop_dns_server(net, dns_host_name)
-    # stop vsomeip apps and delete host configs
+    stop_dns_server(net[dns_host_name])
+    reset_zone_files()
+    # stop vsomeip apps, delete host configs and certificates
+    certificates_path = "/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/"
     for host in net.hosts:
         host_name: str = host.__str__()
         if host_name != dns_host_name:
             if host_name != 'h1':
                 stop_subscriber_app(host)
+                host.cmd(f'rm {certificates_path}{host_name}.client.cert.pem {certificates_path}{host_name}.client.key.pem')
             else:
                 stop_publisher_app(host)
+                host.cmd(f'rm {certificates_path}{host_name}.service.cert.pem {certificates_path}{host_name}.service.key.pem')
             host_config: str = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
             host.cmd(f'rm {host_config}')
     net.stop()
