@@ -94,8 +94,7 @@ def create_subscriber_config(host):
     # cert path
     # private key path
 
-def create_publisher_config(net: Mininet):
-    host = net['h1']
+def create_publisher_config(host):
     host_name = host.__str__()
     publisher_config_template = "/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/vsomeip-udp-mininet-publisher.json"
     host_config = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
@@ -103,6 +102,12 @@ def create_publisher_config(net: Mininet):
     create_host_config(host, host_config)
     # cert path
     # private key path
+
+def create_client_certificate(host):
+    pass
+
+def create_service_certificate(host):
+    pass
 
 def create_host_config(host, host_config: str):
     host_name = host.__str__()
@@ -159,7 +164,7 @@ if __name__ == '__main__':
     # simple_tests(net)
     dns_host_name: str = "h{}".format(host_count+1)
     start_dns_server(net, dns_host_name)
-    create_publisher_config(net)
+    create_publisher_config(net['h1'])
     for host in net.hosts:
         add_default_route(net, host.__str__())
         host_name = host.__str__()
