@@ -187,27 +187,29 @@ if __name__ == '__main__':
             create_subscriber_config(host)
             create_client_certificate(host)
     start_dns_server(net[dns_host_name])
+    start_someip_publisher_app(net['h1'])
     for host in net.hosts:
         host_name = host.__str__()
-        # if host_name != 'h1' and host_name != dns_host_name:
-        #     start_someip_subscriber_app(host)
-    # start_someip_publisher_app(net['h1'])
+        if host_name != 'h1' and host_name != dns_host_name:
+            start_someip_subscriber_app(host)
     CLI(net)
-    stop_dns_server(net[dns_host_name])
-    reset_zone_files()
-    # stop vsomeip apps, delete host configs and certificates
     certificates_path = "/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/"
     for host in net.hosts:
         host_name: str = host.__str__()
         if host_name != dns_host_name:
             if host_name != 'h1':
                 stop_subscriber_app(host)
+                # delete certificates
                 host.cmd(f'rm {certificates_path}{host_name}.client.cert.pem {certificates_path}{host_name}.client.key.pem')
             else:
                 stop_publisher_app(host)
+                # delete certificates
                 host.cmd(f'rm {certificates_path}{host_name}.service.cert.pem {certificates_path}{host_name}.service.key.pem')
+            # delete host configs
             host_config: str = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
             host.cmd(f'rm {host_config}')
+    stop_dns_server(net[dns_host_name])
+    reset_zone_files()
     net.stop()
 else:
     # Command to start CLI w/ topo only: sudo -E mn --mac --controller none --custom ~/vscode-workspaces/topo-1sw-Nhosts.py --topo simple_topo
