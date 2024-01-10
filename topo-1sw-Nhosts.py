@@ -74,6 +74,13 @@ def add_default_route(host):
     host_name = host.__str__()
     host.cmd(f'route add default gw 10.0.0.0 {host_name}-eth0')
 
+def set_dns_server_ip_in_vsomeip(dns_host):
+    dns_host_ip = dns_host.IP(intf=dns_host.defaultIntf())
+    ip_bytes = dns_host_ip.split(".")
+    ip_bytes_in_hex = [ "{:02x}".format(int(x)) for x in ip_bytes ]
+    dns_host_ip_in_hex = f"0x{''.join(ip_bytes_in_hex)}"
+    dns_host.cmd(f"sed -i -E 's/#define DNS_SERVER_IP .*/#define DNS_SERVER_IP {dns_host_ip_in_hex}/' /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/implementation/dnssec/include/someip_dns_parameters.hpp")
+
 def start_dns_server(dns_host):
     dns_host_ip = dns_host.IP(intf=dns_host.defaultIntf())
     dns_host.cmd(f"sed -i -E 's/.* # mininet-host-ip/    ip-address: {dns_host_ip} # mininet-host-ip/' /home/mehmet/vscode-workspaces/mininet-vsomeip/nsd/nsd.conf")
@@ -178,6 +185,7 @@ if __name__ == '__main__':
     # simple_tests(net)
     reset_zone_files()
     dns_host_name: str = f"h{host_count+1}"
+    set_dns_server_ip_in_vsomeip(net[dns_host_name])
     build_vsomeip()
     create_publisher_config(net['h1'])
     create_service_certificate(net['h1'])
