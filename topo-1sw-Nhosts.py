@@ -84,6 +84,7 @@ def start_dns_server(dns_host):
 
 def stop_dns_server(dns_host):
     dns_host.cmd('nsd-control stop')
+    dns_host.cmd('pkill nsd')
 
 def create_subscriber_config(host):
     host_name = host.__str__()
@@ -166,7 +167,6 @@ if __name__ == '__main__':
     if host_count > maximum_possible_hosts:
         print(f"Please provide a host count less or equal {maximum_possible_hosts}")
         exit(1)
-    build_vsomeip()
     topo: simple_topo = simple_topo(n = host_count+1)
     net: Mininet = Mininet(topo=topo, controller=None, link=TCLink)
     net.start()
@@ -178,6 +178,7 @@ if __name__ == '__main__':
     # simple_tests(net)
     reset_zone_files()
     dns_host_name: str = f"h{host_count+1}"
+    build_vsomeip()
     create_publisher_config(net['h1'])
     create_service_certificate(net['h1'])
     for host in net.hosts:
