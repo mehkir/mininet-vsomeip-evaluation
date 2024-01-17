@@ -174,6 +174,7 @@ if __name__ == '__main__':
     if host_count > maximum_possible_hosts:
         print(f"Please provide a host count less or equal {maximum_possible_hosts}")
         exit(1)
+    # build mininet network
     topo: simple_topo = simple_topo(n = host_count+1)
     net: Mininet = Mininet(topo=topo, controller=None, link=TCLink)
     net.start()
@@ -187,6 +188,8 @@ if __name__ == '__main__':
     dns_host_name: str = f"h{host_count+1}"
     set_dns_server_ip_in_vsomeip(net[dns_host_name])
     build_vsomeip()
+    # start statistics writer
+    statistics_writer_process = subprocess.Popen(["/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/build/implementation/statistics/statistics-writer-main", str(host_count), "/home/mehmet/vscode-workspaces/mininet-vsomeip/statistic-results"])
     create_publisher_config(net['h1'])
     create_service_certificate(net['h1'])
     for host in net.hosts:
@@ -201,6 +204,12 @@ if __name__ == '__main__':
         host_name = host.__str__()
         if host_name != 'h1' and host_name != dns_host_name:
             start_someip_subscriber_app(host)
+    # Wait for statistics writer
+    return_code = statistics_writer_process.wait()
+    if return_code == 0:
+        print("statistics writer executed successfully")
+    else:
+        print(f"statistics writer failed with return code {return_code}")
     CLI(net)
     certificates_path = "/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/"
     for host in net.hosts:
