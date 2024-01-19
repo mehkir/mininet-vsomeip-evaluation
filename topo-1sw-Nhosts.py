@@ -20,6 +20,7 @@ from mininet.log import setLogLevel
 from mininet.util import dumpNodeConnections
 from mininet.util import dumpNetConnections
 
+PUBLISHER_HOST_NAME = 'h1'
 PROJECT_PATH = "/home/mehmet/vscode-workspaces/mininet-vsomeip"
 
 SERVICE_ID = "1234"
@@ -82,6 +83,9 @@ def set_dns_server_ip_in_vsomeip(dns_host):
     ip_bytes_in_hex = [ "{:02x}".format(int(x)) for x in ip_bytes ]
     dns_host_ip_in_hex = f"0x{''.join(ip_bytes_in_hex)}"
     dns_host.cmd(f"sed -i -E 's/#define DNS_SERVER_IP .*/#define DNS_SERVER_IP {dns_host_ip_in_hex}/' {PROJECT_PATH}/vsomeip/implementation/dnssec/include/someip_dns_parameters.hpp")
+
+def set_subscriber_count_to_record_in_vsomeip(subscriber_count_to_record: int):
+    subprocess.run(f"sed -i -E 's/#define SUBSCRIBER_COUNT_TO_RECORD .*/#define SUBSCRIBER_COUNT_TO_RECORD {subscriber_count_to_record}/'", shell=True)
 
 def start_dns_server(dns_host):
     dns_host_ip = dns_host.IP(intf=dns_host.defaultIntf())
@@ -189,22 +193,23 @@ if __name__ == '__main__':
     reset_zone_files()
     dns_host_name: str = f"h{host_count+1}"
     set_dns_server_ip_in_vsomeip(net[dns_host_name])
+    set_subscriber_count_to_record_in_vsomeip(host_count-1)
     build_vsomeip()
     # start statistics writer
     statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(host_count), f"{PROJECT_PATH}/statistic-results"])
-    create_publisher_config(net['h1'])
-    create_service_certificate(net['h1'])
+    create_publisher_config(net[PUBLISHER_HOST_NAME])
+    create_service_certificate(net[PUBLISHER_HOST_NAME])
     for host in net.hosts:
         add_default_route(host)
         host_name = host.__str__()
-        if host_name != 'h1' and host_name != dns_host_name:
+        if host_name != PUBLISHER_HOST_NAME and host_name != dns_host_name:
             create_subscriber_config(host)
             create_client_certificate(host)
     start_dns_server(net[dns_host_name])
-    start_someip_publisher_app(net['h1'])
+    start_someip_publisher_app(net[PUBLISHER_HOST_NAME])
     for host in net.hosts:
         host_name = host.__str__()
-        if host_name != 'h1' and host_name != dns_host_name:
+        if host_name != PUBLISHER_HOST_NAME and host_name != dns_host_name:
             start_someip_subscriber_app(host)
     # Wait for statistics writer
     return_code = statistics_writer_process.wait()
@@ -217,7 +222,7 @@ if __name__ == '__main__':
     for host in net.hosts:
         host_name: str = host.__str__()
         if host_name != dns_host_name:
-            if host_name != 'h1':
+            if host_name != PUBLISHER_HOST_NAME:
                 stop_subscriber_app(host)
                 # delete certificates
                 host.cmd(f'rm {certificates_path}{host_name}.client.cert.pem {certificates_path}{host_name}.client.key.pem')
