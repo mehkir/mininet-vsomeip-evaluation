@@ -20,6 +20,8 @@ from mininet.log import setLogLevel
 from mininet.util import dumpNodeConnections
 from mininet.util import dumpNetConnections
 
+PROJECT_PATH = "/home/mehmet/vscode-workspaces/mininet-vsomeip"
+
 SERVICE_ID = "1234"
 INSTANCE_ID = "5678"
 MAJOR_VERSION = "0"
@@ -79,15 +81,15 @@ def set_dns_server_ip_in_vsomeip(dns_host):
     ip_bytes = dns_host_ip.split(".")
     ip_bytes_in_hex = [ "{:02x}".format(int(x)) for x in ip_bytes ]
     dns_host_ip_in_hex = f"0x{''.join(ip_bytes_in_hex)}"
-    dns_host.cmd(f"sed -i -E 's/#define DNS_SERVER_IP .*/#define DNS_SERVER_IP {dns_host_ip_in_hex}/' /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/implementation/dnssec/include/someip_dns_parameters.hpp")
+    dns_host.cmd(f"sed -i -E 's/#define DNS_SERVER_IP .*/#define DNS_SERVER_IP {dns_host_ip_in_hex}/' {PROJECT_PATH}/vsomeip/implementation/dnssec/include/someip_dns_parameters.hpp")
 
 def start_dns_server(dns_host):
     dns_host_ip = dns_host.IP(intf=dns_host.defaultIntf())
-    dns_host.cmd(f"sed -i -E 's/.* # mininet-host-ip/    ip-address: {dns_host_ip} # mininet-host-ip/' /home/mehmet/vscode-workspaces/mininet-vsomeip/nsd/nsd.conf")
-    dns_host.cmd(f"sed -i -E 's/ns\.service\.         IN    A    .*/ns.service.         IN    A    {dns_host_ip}/' /home/mehmet/vscode-workspaces/mininet-vsomeip/zones/service.zone")
-    dns_host.cmd(f"sed -i -E 's/ns\.client\.         IN    A    .*/ns.client.         IN    A    {dns_host_ip}/' /home/mehmet/vscode-workspaces/mininet-vsomeip/zones/client.zone")
+    dns_host.cmd(f"sed -i -E 's/.* # mininet-host-ip/    ip-address: {dns_host_ip} # mininet-host-ip/' {PROJECT_PATH}/nsd/nsd.conf")
+    dns_host.cmd(f"sed -i -E 's/ns\.service\.         IN    A    .*/ns.service.         IN    A    {dns_host_ip}/' {PROJECT_PATH}/zones/service.zone")
+    dns_host.cmd(f"sed -i -E 's/ns\.client\.         IN    A    .*/ns.client.         IN    A    {dns_host_ip}/' {PROJECT_PATH}/zones/client.zone")
     dns_host.cmd('nsd-control-setup')
-    dns_host.cmd('nsd -c /home/mehmet/vscode-workspaces/mininet-vsomeip/nsd/nsd.conf')
+    dns_host.cmd(f'nsd -c {PROJECT_PATH}/nsd/nsd.conf')
 
 def stop_dns_server(dns_host):
     dns_host.cmd('nsd-control stop')
@@ -95,15 +97,15 @@ def stop_dns_server(dns_host):
 
 def create_subscriber_config(host):
     host_name = host.__str__()
-    subscriber_config_template = "/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/vsomeip-udp-mininet-subscriber.json"
-    host_config = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
+    subscriber_config_template = f"{PROJECT_PATH}/vsomeip-configs/vsomeip-udp-mininet-subscriber.json"
+    host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
     host.cmd(f'cp {subscriber_config_template} {host_config}')
     create_host_config(host, host_config)
 
 def create_publisher_config(host):
     host_name = host.__str__()
-    publisher_config_template = "/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/vsomeip-udp-mininet-publisher.json"
-    host_config = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
+    publisher_config_template = f"{PROJECT_PATH}/vsomeip-configs/vsomeip-udp-mininet-publisher.json"
+    host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
     host.cmd(f'cp {publisher_config_template} {host_config}')
     create_host_config(host, host_config)
 
@@ -122,8 +124,8 @@ def create_client_certificate(host):
     host_name = host.__str__()
     host_id = str(host_name[1:])
     host_ip = host.IP(intf=host.defaultIntf())
-    host_config = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
-    host.cmd(f'/home/mehmet/vscode-workspaces/mininet-vsomeip/client-svcb-and-tlsa-generator.bash {host_id} {SERVICE_ID} {INSTANCE_ID} {MAJOR_VERSION} {host_ip} {SUBSCRIBER_PORTS} {PROTOCOL} {host_name}')
+    host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
+    host.cmd(f'{PROJECT_PATH}/client-svcb-and-tlsa-generator.bash {host_id} {SERVICE_ID} {INSTANCE_ID} {MAJOR_VERSION} {host_ip} {SUBSCRIBER_PORTS} {PROTOCOL} {host_name}')
     certificate_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/{host_name}.client.cert.pem"
     private_key_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/{host_name}.client.key.pem"
     host.cmd(f"sed -i -E 's/    \"certificate-path\" : .*,/    \"certificate-path\" : \"{certificate_path}\",/' {host_config}")
@@ -132,23 +134,23 @@ def create_client_certificate(host):
 def create_service_certificate(host):
     host_name = host.__str__()
     host_ip = host.IP(intf=host.defaultIntf())
-    host_config = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
-    host.cmd(f'/home/mehmet/vscode-workspaces/mininet-vsomeip/service-svcb-and-tlsa-generator.bash {SERVICE_ID} {INSTANCE_ID} {MAJOR_VERSION} {MINOR_VERSION} {host_ip} {PUBLISHER_PORT} {PROTOCOL} {host_name}')
+    host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
+    host.cmd(f'{PROJECT_PATH}/service-svcb-and-tlsa-generator.bash {SERVICE_ID} {INSTANCE_ID} {MAJOR_VERSION} {MINOR_VERSION} {host_ip} {PUBLISHER_PORT} {PROTOCOL} {host_name}')
     certificate_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/{host_name}.service.cert.pem"
     private_key_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/{host_name}.service.key.pem"
     host.cmd(f"sed -i -E 's/    \"certificate-path\" : .*,/    \"certificate-path\" : \"{certificate_path}\",/' {host_config}")
     host.cmd(f"sed -i -E 's/    \"private-key-path\" : .*/    \"private-key-path\" : \"{private_key_path}\"/' {host_config}")
 
 def reset_zone_files():
-    subprocess.run(["su", "-", "mehmet", "-c", "/home/mehmet/vscode-workspaces/mininet-vsomeip/reset-zone-file.bash"])
+    subprocess.run(["su", "-", "mehmet", "-c", f"{PROJECT_PATH}/reset-zone-file.bash"])
 
 def start_someip_subscriber_app(host):
     host_name = host.__str__()
-    host.cmd(f"env VSOMEIP_CONFIGURATION=/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json  VSOMEIP_APPLICATION_NAME={host_name} /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/build/examples/my-subscriber &")
+    host.cmd(f"env VSOMEIP_CONFIGURATION={PROJECT_PATH}/vsomeip-configs/{host_name}.json  VSOMEIP_APPLICATION_NAME={host_name} {PROJECT_PATH}/vsomeip/build/examples/my-subscriber &")
 
 def start_someip_publisher_app(host):
     host_name = host.__str__()
-    host.cmd(f"env VSOMEIP_CONFIGURATION=/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json  VSOMEIP_APPLICATION_NAME={host_name} /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/build/examples/my-publisher &")
+    host.cmd(f"env VSOMEIP_CONFIGURATION={PROJECT_PATH}/vsomeip-configs/{host_name}.json  VSOMEIP_APPLICATION_NAME={host_name} {PROJECT_PATH}/vsomeip/build/examples/my-publisher &")
 
 def stop_subscriber_app(host):
     host.cmd("pkill my-subscriber")
@@ -157,7 +159,7 @@ def stop_publisher_app(host):
     host.cmd("pkill my-publisher")
 
 def build_vsomeip():
-    subprocess.run(["su", "-", "mehmet", "-c", "/home/mehmet/vscode-workspaces/mininet-vsomeip/build_vsomeip.bash"])
+    subprocess.run(["su", "-", "mehmet", "-c", f"{PROJECT_PATH}/build_vsomeip.bash"])
 
 if __name__ == '__main__':
     setLogLevel('info')
@@ -189,7 +191,7 @@ if __name__ == '__main__':
     set_dns_server_ip_in_vsomeip(net[dns_host_name])
     build_vsomeip()
     # start statistics writer
-    statistics_writer_process = subprocess.Popen(["/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/build/implementation/statistics/statistics-writer-main", str(host_count), "/home/mehmet/vscode-workspaces/mininet-vsomeip/statistic-results"])
+    statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(host_count), f"{PROJECT_PATH}/statistic-results"])
     create_publisher_config(net['h1'])
     create_service_certificate(net['h1'])
     for host in net.hosts:
@@ -211,7 +213,7 @@ if __name__ == '__main__':
     else:
         print(f"statistics writer failed with return code {return_code}")
     CLI(net)
-    certificates_path = "/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/"
+    certificates_path = f"{PROJECT_PATH}/certificates/"
     for host in net.hosts:
         host_name: str = host.__str__()
         if host_name != dns_host_name:
@@ -224,7 +226,7 @@ if __name__ == '__main__':
                 # delete certificates
                 host.cmd(f'rm {certificates_path}{host_name}.service.cert.pem {certificates_path}{host_name}.service.key.pem')
             # delete host configs
-            host_config: str = f"/home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-configs/{host_name}.json"
+            host_config: str = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
             host.cmd(f'rm {host_config}')
     stop_dns_server(net[dns_host_name])
     reset_zone_files()
