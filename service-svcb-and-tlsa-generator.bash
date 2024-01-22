@@ -36,10 +36,10 @@ if [[ $# -gt 7 ]]; then
     #printf "major version: %s\n" "$major_version"
     #printf "minor version: %s\n" "$minor_version"
 
-    dns_service="0x$(echo "$service_id" | awk '{ printf("%04u", $1) }')"
-    dns_instance="0x$(echo "$instance_id" | awk '{ printf("%04u", $1) }')"
-    dns_major="0x$(echo "$major_version" | awk '{ printf("%02u", $1) }')"
-    dns_minor="0x$(echo "$minor_version" | awk '{ printf("%08u", $1) }')"
+    dns_service=$(printf "0x%04x" $service_id)
+    dns_instance=$(printf "0x%04x" $instance_id)
+    dns_major=$(printf "0x%02x" $major_version)
+    dns_minor=$(printf "0x%08x" $minor_version)
 
     svcb_rdata="ipv4hint=$ip_address  port=$port_number  key65280=$dns_instance  key65281=$dns_major  key65282=$dns_minor  key65283=$protocol_id"
     echo $(printf "; SVCB records for minor=%s major=%s instance=%s id=%s\n" "$dns_minor" "$dns_major" "$dns_instance" "$dns_service") >> $ZONE_FILE_PATH
