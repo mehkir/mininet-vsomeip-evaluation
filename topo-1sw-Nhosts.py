@@ -23,8 +23,8 @@ from mininet.util import dumpNetConnections
 PUBLISHER_HOST_NAME = 'h1'
 PROJECT_PATH = "/home/mehmet/vscode-workspaces/mininet-vsomeip"
 
-SERVICE_ID = "1234"
-INSTANCE_ID = "5678"
+SERVICE_ID = "4660"
+INSTANCE_ID = "22136"
 MAJOR_VERSION = "0"
 MINOR_VERSION = "0"
 PUBLISHER_PORT = "30509"
@@ -237,6 +237,7 @@ if __name__ == '__main__':
     reset_zone_files()
     net.stop()
     subprocess.run(["pkill", "statistics-writ"])
+    subprocess.run("rm -f /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-h*", shell=True)
 else:
     # Command to start CLI w/ topo only: sudo -E mn --mac --controller none --custom ~/vscode-workspaces/topo-1sw-Nhosts.py --topo simple_topo
     topos = {'simple_topo': (lambda: simple_topo())}
