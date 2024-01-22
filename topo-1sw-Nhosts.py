@@ -196,7 +196,7 @@ if __name__ == '__main__':
     set_subscriber_count_to_record_in_vsomeip(host_count-1)
     build_vsomeip()
     # start statistics writer
-    statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(host_count), f"{PROJECT_PATH}/statistic-results"])
+    statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(host_count-1), f"{PROJECT_PATH}/statistic-results"])
     create_publisher_config(net[PUBLISHER_HOST_NAME])
     create_service_certificate(net[PUBLISHER_HOST_NAME])
     for host in net.hosts:
@@ -212,11 +212,11 @@ if __name__ == '__main__':
         if host_name != PUBLISHER_HOST_NAME and host_name != dns_host_name:
             start_someip_subscriber_app(host)
     # Wait for statistics writer
-    return_code = statistics_writer_process.wait()
-    if return_code == 0:
-        print("statistics writer executed successfully")
-    else:
-        print(f"statistics writer failed with return code {return_code}")
+    # return_code = statistics_writer_process.wait()
+    # if return_code == 0:
+    #     print("statistics writer executed successfully")
+    # else:
+    #     print(f"statistics writer failed with return code {return_code}")
     CLI(net)
     certificates_path = f"{PROJECT_PATH}/certificates/"
     for host in net.hosts:
@@ -236,6 +236,7 @@ if __name__ == '__main__':
     stop_dns_server(net[dns_host_name])
     reset_zone_files()
     net.stop()
+    subprocess.run(["pkill", "statistics-writ"])
 else:
     # Command to start CLI w/ topo only: sudo -E mn --mac --controller none --custom ~/vscode-workspaces/topo-1sw-Nhosts.py --topo simple_topo
     topos = {'simple_topo': (lambda: simple_topo())}
