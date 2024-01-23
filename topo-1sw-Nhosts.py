@@ -212,11 +212,11 @@ if __name__ == '__main__':
         if host_name != PUBLISHER_HOST_NAME and host_name != dns_host_name:
             start_someip_subscriber_app(host)
     # Wait for statistics writer
-    # return_code = statistics_writer_process.wait()
-    # if return_code == 0:
-    #     print("statistics writer executed successfully")
-    # else:
-    #     print(f"statistics writer failed with return code {return_code}")
+    return_code = statistics_writer_process.wait()
+    if return_code == 0:
+        print("statistics writer executed successfully")
+    else:
+        print(f"statistics writer failed with return code {return_code}")
     CLI(net)
     certificates_path = f"{PROJECT_PATH}/certificates/"
     for host in net.hosts:
@@ -236,8 +236,10 @@ if __name__ == '__main__':
     stop_dns_server(net[dns_host_name])
     reset_zone_files()
     net.stop()
-    subprocess.run(["pkill", "statistics-writ"])
+    if return_code:
+        subprocess.run(["pkill", "statistics-writ"])
     subprocess.run("rm -f /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-h*", shell=True)
+    subprocess.run("rm -f /var/log/h*.log", shell=True)
 else:
     # Command to start CLI w/ topo only: sudo -E mn --mac --controller none --custom ~/vscode-workspaces/topo-1sw-Nhosts.py --topo simple_topo
     topos = {'simple_topo': (lambda: simple_topo())}
