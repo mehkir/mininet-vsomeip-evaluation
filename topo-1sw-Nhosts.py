@@ -186,10 +186,6 @@ if __name__ == '__main__':
     net.start()
     for switch in net.switches:
         make_switch_traditional(net, switch.__str__())
-        # dump_switch_flows(net, switch.__str__())
-        # dump_switch_information(net, switch.__str__())
-    # dump_infos(net)
-    # simple_tests(net)
     reset_zone_files()
     dns_host_name: str = f"h{host_count+1}"
     set_dns_server_ip_in_vsomeip(net[dns_host_name])
