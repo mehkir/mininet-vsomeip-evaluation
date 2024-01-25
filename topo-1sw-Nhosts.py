@@ -85,7 +85,10 @@ def set_dns_server_ip_in_vsomeip(dns_host):
     dns_host.cmd(f"sed -i -E 's/#define DNS_SERVER_IP .*/#define DNS_SERVER_IP {dns_host_ip_in_hex}/' {PROJECT_PATH}/vsomeip/implementation/dnssec/include/someip_dns_parameters.hpp")
 
 def set_subscriber_count_to_record_in_vsomeip(subscriber_count_to_record: int):
-    subprocess.run(f"sed -i -E 's/#define SUBSCRIBER_COUNT_TO_RECORD .*/#define SUBSCRIBER_COUNT_TO_RECORD {subscriber_count_to_record}/' {PROJECT_PATH}/vsomeip/implementation/service_discovery/src/service_discovery_impl.cpp", shell=True)
+    result = subprocess.run("grep \"#define SUBSCRIBER_COUNT_TO_RECORD\" /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip/implementation/service_discovery/src/service_discovery_impl.cpp | awk '{print $3}'", shell=True, stdout=subprocess.PIPE, text=True)
+    current_subscriber_count = int(result.stdout.strip())
+    if current_subscriber_count != subscriber_count_to_record:
+        subprocess.run(f"sed -i -E 's/#define SUBSCRIBER_COUNT_TO_RECORD .*/#define SUBSCRIBER_COUNT_TO_RECORD {subscriber_count_to_record}/' {PROJECT_PATH}/vsomeip/implementation/service_discovery/src/service_discovery_impl.cpp", shell=True)
 
 def start_dns_server(dns_host):
     dns_host_ip = dns_host.IP(intf=dns_host.defaultIntf())
