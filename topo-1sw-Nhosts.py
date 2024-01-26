@@ -29,6 +29,15 @@ MINOR_VERSION = "0"
 PUBLISHER_PORT = "30509"
 SUBSCRIBER_PORTS = "40000,40002"
 PROTOCOL = "UDP"
+# compile definitions
+WITH_SERVICE_AUTHENTICATION = 'WITH_SERVICE_AUTHENTICATION'
+WITH_CLIENT_AUTHENTICATION = 'WITH_CLIENT_AUTHENTICATION'
+WITH_ENCRYPTION = 'WITH_ENCRYPTION'
+WITH_SOMEIP_SD = 'WITH_SOMEIP_SD'
+WITH_DANE = 'WITH_DANE'
+# branches
+VANILLA = 'multiple_services/vanilla'
+DNS_AND_DANE = 'multiple_services/dns_and_dane'
 
 class simple_topo( Topo ):
     "Simple topology example."
@@ -168,7 +177,8 @@ def stop_publisher_app(host):
     host.cmd("pkill my-publisher")
 
 def switch_someip_branch(branch_name: str):
-    subprocess.run(f"cd {PROJECT_PATH}/vsomeip && git checkout {branch_name}", shell=True)
+    result = subprocess.run(f"cd {PROJECT_PATH}/vsomeip && git checkout {branch_name}", shell=True)
+    return result.returncode
 
 def build_vsomeip():
     subprocess.run(["su", "-", "mehmet", "-c", f"{PROJECT_PATH}/build_vsomeip.bash"])
@@ -179,9 +189,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Starts vsomeip w/ or w/o security mechanisms and collects timestamps of handshake events')
     parser.add_argument('--hosts', type=int, metavar='N', required=True, choices=range(2,0xffff+1), help='Specify the number of hosts. (between 2 (inclusive) and 65536 (exclusive))')
     parser.add_argument('--evaluate', choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'], required=True, help="""A: vanilla (vsomeip as it is),
-                                                                                                                        B: w/ publisher authentication,
-                                                                                                                        C: w/ publisher and client authentication,
-                                                                                                                        D: w/ publisher and client authentication + payload encryption,
+                                                                                                                        B: w/ service authentication,
+                                                                                                                        C: w/ service and client authentication,
+                                                                                                                        D: w/ service and client authentication + payload encryption,
                                                                                                                         E: w/ DNSSEC w/o SOME/IP SD,
                                                                                                                         F: w/ DNSSEC + SOME/IP SD,
                                                                                                                         G: w/ DNSSEC + DANE w/o SOME/IP SD,
@@ -190,19 +200,49 @@ if __name__ == '__main__':
                                                                                                                         J: w/ DNSSEC + DANE + SOME/IP SD + client authentication + payload encryption""")
     args = parser.parse_args()
     host_count: int = args.hosts
+    evaluation_option: str = args.evaluate
+    compile_definitions = {'A':'',
+                           'B':f'{WITH_SERVICE_AUTHENTICATION}',
+                           'C':f'{WITH_SERVICE_AUTHENTICATION} {WITH_CLIENT_AUTHENTICATION}',
+                           'D':f'{WITH_SERVICE_AUTHENTICATION} {WITH_CLIENT_AUTHENTICATION} {WITH_ENCRYPTION}',
+                           'E':'',
+                           'F':f'{WITH_SOMEIP_SD}',
+                           'G':f'{WITH_DANE}',
+                           'H':f'{WITH_DANE} {WITH_SOMEIP_SD}',
+                           'I':f'{WITH_DANE} {WITH_SOMEIP_SD} {WITH_CLIENT_AUTHENTICATION}',
+                           'J':f'{WITH_DANE} {WITH_SOMEIP_SD} {WITH_CLIENT_AUTHENTICATION} {WITH_ENCRYPTION}'}
+    branches = {'A':VANILLA,
+                'B':VANILLA,
+                'C':VANILLA,
+                'D':VANILLA,
+                'E':DNS_AND_DANE,
+                'F':DNS_AND_DANE,
+                'G':DNS_AND_DANE,
+                'H':DNS_AND_DANE,
+                'I':DNS_AND_DANE,
+                'J':DNS_AND_DANE,}
+    switch_branch = branches[evaluation_option]
+    add_compile_definitions = compile_definitions[evaluation_option]
+    if switch_someip_branch(switch_branch):
+        print("Couldn't switch branch. Check git repository state.")
+        exit(1)
+    # setup vsomeip
+    set_subscriber_count_to_record_in_vsomeip(host_count-1)
+    build_vsomeip()
+    # start statistics writer
+    statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(host_count-1), f"{PROJECT_PATH}/statistic-results"])
     # build mininet network
     topo: simple_topo = simple_topo(n = host_count+1)
     net: Mininet = Mininet(topo=topo, controller=None, link=TCLink)
     net.start()
     for switch in net.switches:
         make_switch_traditional(net, switch.__str__())
+    # setup dns server
     reset_zone_files()
     dns_host_name: str = f"h{host_count+1}"
     set_dns_server_ip_in_vsomeip(net[dns_host_name])
-    set_subscriber_count_to_record_in_vsomeip(host_count-1)
-    build_vsomeip()
-    # start statistics writer
-    statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(host_count-1), f"{PROJECT_PATH}/statistic-results"])
+    start_dns_server(net[dns_host_name])
+    # create host configs and certificates
     create_publisher_config(net[PUBLISHER_HOST_NAME])
     create_service_certificate(net[PUBLISHER_HOST_NAME])
     for host in net.hosts:
@@ -211,7 +251,7 @@ if __name__ == '__main__':
         if host_name != PUBLISHER_HOST_NAME and host_name != dns_host_name:
             create_subscriber_config(host)
             create_client_certificate(host)
-    start_dns_server(net[dns_host_name])
+    # start someip publisher and subscribers
     start_someip_publisher_app(net[PUBLISHER_HOST_NAME])
     for host in net.hosts:
         host_name = host.__str__()
@@ -224,6 +264,7 @@ if __name__ == '__main__':
     else:
         print(f"statistics writer failed with return code {return_code}")
     CLI(net)
+    # stop someip publisher, subscribers and dns server
     for host in net.hosts:
         host_name: str = host.__str__()
         if host_name != dns_host_name:
@@ -232,8 +273,9 @@ if __name__ == '__main__':
             else:
                 stop_publisher_app(host)
     stop_dns_server(net[dns_host_name])
-    reset_zone_files()
     net.stop()
+    #cleanup
+    reset_zone_files()
     subprocess.run(["pkill", "statistics-writ"])
     subprocess.run(f"rm -f {PROJECT_PATH}/vsomeip-h*", shell=True)
     subprocess.run("rm -f /var/log/h*.log", shell=True)
