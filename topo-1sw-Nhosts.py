@@ -8,7 +8,7 @@ Adding the 'topos' dict with a key/value pair to generate our newly defined
 topology enables one to pass in '--topo=mytopo' from the command line.
 """
 
-import sys
+import argparse
 import subprocess
 from itertools import combinations
 from mininet.topo import Topo
@@ -176,18 +176,20 @@ def build_vsomeip():
 if __name__ == '__main__':
     setLogLevel('info')
     maximum_possible_hosts: int = 0xffff
-    host_count: int = 0
-    if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} <host_count>")
-        print(f"Usage example: {sys.argv[0]} 3")
-        exit(1)
-    host_count: int = int(sys.argv[1])
-    if host_count < 2:
-        print("Please provide a host count greater 1")
-        exit(1)
-    if host_count > maximum_possible_hosts:
-        print(f"Please provide a host count less or equal {maximum_possible_hosts}")
-        exit(1)
+    parser = argparse.ArgumentParser(description='Starts vsomeip w/ or w/o security mechanisms and collects timestamps of handshake events')
+    parser.add_argument('--hosts', type=int, metavar='N', required=True, choices=range(2,0xffff+1), help='Specify the number of hosts. (between 2 (inclusive) and 65536 (exclusive))')
+    parser.add_argument('--evaluate', choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'], required=True, help="""A: vanilla (vsomeip as it is),
+                                                                                                                        B: w/ publisher authentication,
+                                                                                                                        C: w/ publisher and client authentication,
+                                                                                                                        D: w/ publisher and client authentication + payload encryption,
+                                                                                                                        E: w/ DNSSEC w/o SOME/IP SD,
+                                                                                                                        F: w/ DNSSEC + SOME/IP SD,
+                                                                                                                        G: w/ DNSSEC + DANE w/o SOME/IP SD,
+                                                                                                                        H: w/ DNSSEC + DANE + SOME/IP SD,
+                                                                                                                        I: w/ DNSSEC + DANE + SOME/IP SD + client authentication,
+                                                                                                                        J: w/ DNSSEC + DANE + SOME/IP SD + client authentication + payload encryption""")
+    args = parser.parse_args()
+    host_count: int = args.hosts
     # build mininet network
     topo: simple_topo = simple_topo(n = host_count+1)
     net: Mininet = Mininet(topo=topo, controller=None, link=TCLink)
