@@ -167,6 +167,9 @@ def stop_subscriber_app(host):
 def stop_publisher_app(host):
     host.cmd("pkill my-publisher")
 
+def switch_someip_branch(branch_name: str):
+    subprocess.run(f"cd {PROJECT_PATH}/vsomeip && git checkout {branch_name}", shell=True)
+
 def build_vsomeip():
     subprocess.run(["su", "-", "mehmet", "-c", f"{PROJECT_PATH}/build_vsomeip.bash"])
 
@@ -219,28 +222,21 @@ if __name__ == '__main__':
     else:
         print(f"statistics writer failed with return code {return_code}")
     CLI(net)
-    certificates_path = f"{PROJECT_PATH}/certificates/"
     for host in net.hosts:
         host_name: str = host.__str__()
         if host_name != dns_host_name:
             if host_name != PUBLISHER_HOST_NAME:
                 stop_subscriber_app(host)
-                # delete certificates
-                host.cmd(f'rm {certificates_path}{host_name}.client.cert.pem {certificates_path}{host_name}.client.key.pem')
             else:
                 stop_publisher_app(host)
-                # delete certificates
-                host.cmd(f'rm {certificates_path}{host_name}.service.cert.pem {certificates_path}{host_name}.service.key.pem')
-            # delete host configs
-            host_config: str = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
-            host.cmd(f'rm {host_config}')
     stop_dns_server(net[dns_host_name])
     reset_zone_files()
     net.stop()
-    if return_code:
-        subprocess.run(["pkill", "statistics-writ"])
-    subprocess.run("rm -f /home/mehmet/vscode-workspaces/mininet-vsomeip/vsomeip-h*", shell=True)
+    subprocess.run(["pkill", "statistics-writ"])
+    subprocess.run(f"rm -f {PROJECT_PATH}/vsomeip-h*", shell=True)
     subprocess.run("rm -f /var/log/h*.log", shell=True)
+    subprocess.run(f"rm -f {PROJECT_PATH}/vsomeip-configs/h*.json", shell=True)
+    subprocess.run(f"rm -f {PROJECT_PATH}/certificates/*", shell=True)
 else:
     # Command to start CLI w/ topo only: sudo -E mn --mac --controller none --custom ~/vscode-workspaces/topo-1sw-Nhosts.py --topo simple_topo
     topos = {'simple_topo': (lambda: simple_topo())}
