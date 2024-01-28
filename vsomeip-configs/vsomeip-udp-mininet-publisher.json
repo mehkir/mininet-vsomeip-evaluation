@@ -65,6 +65,5 @@
     },
 
     "certificate-path" : "<certificate path>",
-    "private-key-path" : "<private key path>",
-    "publisher-certificate-path" : "<publisher certificate path>"
+    "private-key-path" : "<private key path>"
 }
