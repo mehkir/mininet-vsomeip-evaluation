@@ -40,6 +40,6 @@
         "request_response_delay" : "1500"
     },
 
-    "certificate-path" : "/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/h1-minor=0x00000000-major=0x00-instance=0x0001-id=0x0001.cert.pem",
-    "private-key-path" : "/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/h1-minor=0x00000000-major=0x00-instance=0x0001-id=0x0001.key.pem"
+    "certificate-path" : "<certificate path>",
+    "private-key-path" : "<private key path>"
 }

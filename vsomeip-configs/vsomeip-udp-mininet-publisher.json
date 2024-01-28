@@ -64,6 +64,7 @@
         "request_response_delay" : "1500"
     },
 
-    "certificate-path" : "/home/vsomeip/certificate/minor=0x00000000-major=0x00-instance=0x5678-id=0x1234.service.cert.pem",
-    "private-key-path" : "/home/vsomeip/certificate/minor=0x00000000-major=0x00-instance=0x5678-id=0x1234.service.key.pem"
+    "certificate-path" : "<certificate path>",
+    "private-key-path" : "<private key path>",
+    "publisher-certificate-path" : "<publisher certificate path>"
 }
