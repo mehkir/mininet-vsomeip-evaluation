@@ -147,7 +147,7 @@ def create_client_certificate(host):
     certificate_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/{host_name}.client.cert.pem"
     private_key_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/{host_name}.client.key.pem"
     host.cmd(f"sed -i -E 's/    \"certificate-path\" : .*,/    \"certificate-path\" : \"{certificate_path}\",/' {host_config}")
-    host.cmd(f"sed -i -E 's/    \"private-key-path\" : .*/    \"private-key-path\" : \"{private_key_path}\"/' {host_config}")
+    host.cmd(f"sed -i -E 's/    \"private-key-path\" : .*/    \"private-key-path\" : \"{private_key_path}\",/' {host_config}")
 
 def create_service_certificate(host):
     host_name = host.__str__()
@@ -211,37 +211,38 @@ if __name__ == '__main__':
                            'H':f'{WITH_DANE} {WITH_SOMEIP_SD}',
                            'I':f'{WITH_DANE} {WITH_SOMEIP_SD} {WITH_CLIENT_AUTHENTICATION}',
                            'J':f'{WITH_DANE} {WITH_SOMEIP_SD} {WITH_CLIENT_AUTHENTICATION} {WITH_ENCRYPTION}'}
-    branches = {'A':VANILLA,
-                'B':VANILLA,
-                'C':VANILLA,
-                'D':VANILLA,
-                'E':DNS_AND_DANE,
-                'F':DNS_AND_DANE,
-                'G':DNS_AND_DANE,
-                'H':DNS_AND_DANE,
-                'I':DNS_AND_DANE,
-                'J':DNS_AND_DANE,}
-    switch_branch = branches[evaluation_option]
+    # branches = {'A':VANILLA,
+    #             'B':VANILLA,
+    #             'C':VANILLA,
+    #             'D':VANILLA,
+    #             'E':DNS_AND_DANE,
+    #             'F':DNS_AND_DANE,
+    #             'G':DNS_AND_DANE,
+    #             'H':DNS_AND_DANE,
+    #             'I':DNS_AND_DANE,
+    #             'J':DNS_AND_DANE,}
+    # switch_branch = branches[evaluation_option]
     add_compile_definitions = compile_definitions[evaluation_option]
-    if switch_someip_branch(switch_branch):
-        print("Couldn't switch branch. Check git repository state.")
-        exit(1)
-    # setup vsomeip
-    set_subscriber_count_to_record_in_vsomeip(host_count-1)
-    build_vsomeip()
-    # start statistics writer
-    statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(host_count-1), f"{PROJECT_PATH}/statistic-results"])
+    # if switch_someip_branch(switch_branch):
+    #     print("Couldn't switch branch. Check git repository state.")
+    #     exit(1)
+
     # build mininet network
     topo: simple_topo = simple_topo(n = host_count+1)
     net: Mininet = Mininet(topo=topo, controller=None, link=TCLink)
     net.start()
     for switch in net.switches:
         make_switch_traditional(net, switch.__str__())
-    # setup dns server
+    # setup dns relevant stuff
     reset_zone_files()
     dns_host_name: str = f"h{host_count+1}"
+    # setup vsomeip
     set_dns_server_ip_in_vsomeip(net[dns_host_name])
-    start_dns_server(net[dns_host_name])
+    set_subscriber_count_to_record_in_vsomeip(host_count-1)
+    # build vsomeip
+    build_vsomeip()
+    # start statistics writer
+    statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(host_count-1), f"{PROJECT_PATH}/statistic-results"])
     # create host configs and certificates
     create_publisher_config(net[PUBLISHER_HOST_NAME])
     create_service_certificate(net[PUBLISHER_HOST_NAME])
@@ -251,6 +252,8 @@ if __name__ == '__main__':
         if host_name != PUBLISHER_HOST_NAME and host_name != dns_host_name:
             create_subscriber_config(host)
             create_client_certificate(host)
+    # start dns server
+    start_dns_server(net[dns_host_name])
     # start someip publisher and subscribers
     start_someip_publisher_app(net[PUBLISHER_HOST_NAME])
     for host in net.hosts:
