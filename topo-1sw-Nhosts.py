@@ -149,6 +149,12 @@ def create_client_certificate(host):
     host.cmd(f"sed -i -E 's/    \"certificate-path\" : .*,/    \"certificate-path\" : \"{certificate_path}\",/' {host_config}")
     host.cmd(f"sed -i -E 's/    \"private-key-path\" : .*/    \"private-key-path\" : \"{private_key_path}\",/' {host_config}")
 
+def set_service_certificate_path(host):
+    host_name = host.__str__()
+    host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
+    service_certificate_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/{PUBLISHER_HOST_NAME}.service.cert.pem"
+    host.cmd(f"sed -i -E 's/    \"service-certificate-path\" : .*/    \"service-certificate-path\" : \"{service_certificate_path}\",/' {host_config}")
+
 def create_service_certificate(host):
     host_name = host.__str__()
     host_ip = host.IP(intf=host.defaultIntf())
@@ -157,7 +163,19 @@ def create_service_certificate(host):
     certificate_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/{host_name}.service.cert.pem"
     private_key_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/{host_name}.service.key.pem"
     host.cmd(f"sed -i -E 's/    \"certificate-path\" : .*,/    \"certificate-path\" : \"{certificate_path}\",/' {host_config}")
-    host.cmd(f"sed -i -E 's/    \"private-key-path\" : .*/    \"private-key-path\" : \"{private_key_path}\"/' {host_config}")
+    host.cmd(f"sed -i -E 's/    \"private-key-path\" : .*/    \"private-key-path\" : \"{private_key_path}\",/' {host_config}")
+
+def set_client_certificate_paths(host, subscriber_count: int):
+    host_name = host.__str__()
+    host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
+    client_certificate_paths = "["
+    for i in range(2, subscriber_count+2):
+        client_certificate_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/h{i}.client.cert.pem"
+        client_certificate_paths += f'"{client_certificate_path}"'
+        if i != subscriber_count+1:
+            client_certificate_paths += ","
+    client_certificate_paths += "]"
+    host.cmd(f"sed -i -E 's/    \"host-certificates\" : .*/    \"host-certificates\" : {client_certificate_paths}/' {host_config}")
 
 def reset_zone_files():
     subprocess.run(["su", "-", "mehmet", "-c", f"{PROJECT_PATH}/reset-zone-file.bash"])
@@ -246,12 +264,14 @@ if __name__ == '__main__':
     # create host configs and certificates
     create_publisher_config(net[PUBLISHER_HOST_NAME])
     create_service_certificate(net[PUBLISHER_HOST_NAME])
+    set_client_certificate_paths(net[PUBLISHER_HOST_NAME], host_count-1)
     for host in net.hosts:
         add_default_route(host)
         host_name = host.__str__()
         if host_name != PUBLISHER_HOST_NAME and host_name != dns_host_name:
             create_subscriber_config(host)
             create_client_certificate(host)
+            set_service_certificate_path(host)
     # start dns server
     start_dns_server(net[dns_host_name])
     # start someip publisher and subscribers
