@@ -42,5 +42,6 @@
 
     "certificate-path" : "<certificate path>",
     "private-key-path" : "<private key path>",
-    "service-certificate-path" : "<service certificate path>"
+    "service-certificate-path" : "<service certificate path>",
+    "host-certificates" : ["<host>", "<host>", "..."]
 }
