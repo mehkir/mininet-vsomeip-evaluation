@@ -10,6 +10,7 @@ topology enables one to pass in '--topo=mytopo' from the command line.
 
 import argparse
 import subprocess
+import json
 from itertools import combinations
 from mininet.topo import Topo
 from mininet.net import Mininet
@@ -144,38 +145,49 @@ def create_client_certificate(host):
     host_ip = host.IP(intf=host.defaultIntf())
     host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
     host.cmd(f'{PROJECT_PATH}/client-svcb-and-tlsa-generator.bash {host_id} {SERVICE_ID} {INSTANCE_ID} {MAJOR_VERSION} {host_ip} {SUBSCRIBER_PORTS} {PROTOCOL} {host_name}')
-    certificate_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/{host_name}.client.cert.pem"
-    private_key_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/{host_name}.client.key.pem"
-    host.cmd(f"sed -i -E 's/    \"certificate-path\" : .*,/    \"certificate-path\" : \"{certificate_path}\",/' {host_config}")
-    host.cmd(f"sed -i -E 's/    \"private-key-path\" : .*/    \"private-key-path\" : \"{private_key_path}\",/' {host_config}")
+    with open(host_config, 'r') as file:
+        config = json.load(file)
+    config['certificate-path'] = f'/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/{host_name}.client.cert.pem'
+    config['private-key-path'] = f'/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/{host_name}.client.key.pem'
+    with open(host_config, 'w') as file:
+        json.dump(config, file, indent=4)
 
 def set_service_certificate_path(host):
     host_name = host.__str__()
     host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
-    service_certificate_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/{PUBLISHER_HOST_NAME}.service.cert.pem"
-    host.cmd(f"sed -i -E 's/    \"service-certificate-path\" : .*/    \"service-certificate-path\" : \"{service_certificate_path}\",/' {host_config}")
+    with open(host_config, 'r') as file:
+        config = json.load(file)
+    config['service-certificate-path'] = f'/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/{PUBLISHER_HOST_NAME}.service.cert.pem'
+    with open(host_config, 'w') as file:
+        json.dump(config, file, indent=4)
 
 def create_service_certificate(host):
     host_name = host.__str__()
     host_ip = host.IP(intf=host.defaultIntf())
     host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
     host.cmd(f'{PROJECT_PATH}/service-svcb-and-tlsa-generator.bash {SERVICE_ID} {INSTANCE_ID} {MAJOR_VERSION} {MINOR_VERSION} {host_ip} {PUBLISHER_PORT} {PROTOCOL} {host_name}')
-    certificate_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/{host_name}.service.cert.pem"
-    private_key_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/{host_name}.service.key.pem"
-    host.cmd(f"sed -i -E 's/    \"certificate-path\" : .*,/    \"certificate-path\" : \"{certificate_path}\",/' {host_config}")
-    host.cmd(f"sed -i -E 's/    \"private-key-path\" : .*/    \"private-key-path\" : \"{private_key_path}\",/' {host_config}")
+    with open(host_config, 'r') as file:
+        config = json.load(file)
+    config['certificate-path'] = f'/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/{host_name}.service.cert.pem'
+    config['private-key-path'] = f'/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/{host_name}.service.key.pem'
+    with open(host_config, 'w') as file:
+        json.dump(config, file, indent=4)
+
 
 def set_client_certificate_paths(host, subscriber_count: int):
+    print("set_client_certificate_paths")
     host_name = host.__str__()
     host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
-    client_certificate_paths = "["
-    for i in range(2, subscriber_count+2):
-        client_certificate_path = f"\/home\/mehmet\/vscode-workspaces\/mininet-vsomeip\/certificates\/h{i}.client.cert.pem"
-        client_certificate_paths += f'"{client_certificate_path}"'
-        if i != subscriber_count+1:
-            client_certificate_paths += ","
-    client_certificate_paths += "]"
-    host.cmd(f"sed -i -E 's/    \"host-certificates\" : .*/    \"host-certificates\" : {client_certificate_paths}/' {host_config}")
+
+    with open(host_config, 'r') as file:
+        config = json.load(file)    
+    client_certificate_paths = [
+        f'/home/mehmet/vscode-workspaces/mininet-vsomeip/certificates/h{i}.client.cert.pem'
+        for i in range(2, subscriber_count + 2)
+    ]
+    config['host-certificates'] = client_certificate_paths
+    with open(host_config, 'w') as file:
+        json.dump(config, file, indent=4)
 
 def reset_zone_files():
     subprocess.run(["su", "-", "mehmet", "-c", f"{PROJECT_PATH}/reset-zone-file.bash"])
@@ -259,7 +271,7 @@ if __name__ == '__main__':
     set_dns_server_ip_in_vsomeip(net[dns_host_name])
     set_subscriber_count_to_record_in_vsomeip(host_count-1)
     # build vsomeip
-    print("Building vsomeip ... ", end='')
+    print("Building vsomeip ... ")
     build_return = build_vsomeip()
     if build_return:
         net.stop()
@@ -270,7 +282,7 @@ if __name__ == '__main__':
     # start statistics writer
     statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(host_count-1), f"{PROJECT_PATH}/statistic-results"])
     # create host configs and certificates
-    print("Creating host configs and certificates ... ", end='')
+    print("Creating host configs and certificates ... ")
     create_publisher_config(net[PUBLISHER_HOST_NAME])
     create_service_certificate(net[PUBLISHER_HOST_NAME])
     set_client_certificate_paths(net[PUBLISHER_HOST_NAME], host_count-1)
@@ -283,7 +295,7 @@ if __name__ == '__main__':
             set_service_certificate_path(host)
     print("Done.")
     # start dns server
-    print("Starting DNS server and SOMEIP apps ... ", end='')
+    print("Starting DNS server and SOMEIP apps ... ")
     start_dns_server(net[dns_host_name])
     # start someip publisher and subscribers
     start_someip_publisher_app(net[PUBLISHER_HOST_NAME])
@@ -293,15 +305,15 @@ if __name__ == '__main__':
             start_someip_subscriber_app(host)
     print("Done.")
     # Wait for statistics writer
-    print("Wait until all statistics are contributed ... ", end='')
-    return_code = statistics_writer_process.wait()
-    if return_code == 0:
-        print("Done.")
-    else:
-        print(f"statistics writer failed with return code {return_code}")
+    # print("Wait until all statistics are contributed ... ", end='')
+    # return_code = statistics_writer_process.wait()
+    # if return_code == 0:
+    #     print("Done.")
+    # else:
+    #     print(f"statistics writer failed with return code {return_code}")
     CLI(net)
     # stop someip publisher, subscribers and dns server
-    print("Stopping SOME/IP apps and DNS server, and cleaning up ... ", end='')
+    print("Stopping SOME/IP apps and DNS server, and cleaning up ... ")
     for host in net.hosts:
         host_name: str = host.__str__()
         if host_name != dns_host_name:
