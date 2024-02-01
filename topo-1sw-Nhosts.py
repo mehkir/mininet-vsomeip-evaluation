@@ -130,14 +130,21 @@ def create_publisher_config(host):
 
 def create_host_config(host, host_config: str):
     host_name = host.__str__()
-    unicast_ip = host.IP(intf=host.defaultIntf())
-    host.cmd(f"sed -i -E 's/    \"network\" : .*,/    \"network\" : \"-{host_name}\",/' {host_config}")
-    host.cmd(f"sed -i -E 's/    \"unicast\" : .*,/    \"unicast\" : \"{unicast_ip}\",/' {host_config}")
-    host.cmd(f"sed -i -E 's/        \"file\" : .*,/        \"file\" : {{ \"enable\" : \"false\", \"path\" : \"\/var\/log\/{host_name}.log\" }},/' {host_config}")
-    host.cmd(f"sed -i -E 's/            \"name\" : .*,/            \"name\" : \"{host_name}\",/' {host_config}")
     host_id = "0x{:04x}".format(int(host.__str__()[1:]))
-    host.cmd(f"sed -i -E 's/            \"id\" : .*/            \"id\" : \"{host_id}\"/' {host_config}")
-    host.cmd(f"sed -i -E 's/    \"routing\" : .*,/    \"routing\" : \"{host_name}\",/' {host_config}")
+    unicast_ip = host.IP(intf=host.defaultIntf())
+    with open(host_config, 'r') as file:
+        config = json.load(file)
+    config['network'] = f'-{host_name}'
+    config['unicast'] = f'{unicast_ip}'
+    config['logging']['level'] = 'trace'
+    config['logging']['console'] = 'false'
+    config['logging']['file']['enable'] = 'true'
+    config['logging']['file']['path'] = f'/var/log/{host_name}.log'
+    config['applications'][0]['name'] = f'{host_name}'
+    config['applications'][0]['id'] = f'{host_id}'
+    config['routing'] = f'{host_name}'
+    with open(host_config, 'w') as file:
+        json.dump(config, file, indent=4)
 
 def create_client_certificate(host):
     host_name = host.__str__()
@@ -175,7 +182,6 @@ def create_service_certificate(host):
 
 
 def set_client_certificate_paths(host, subscriber_count: int):
-    print("set_client_certificate_paths")
     host_name = host.__str__()
     host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
 
@@ -211,7 +217,7 @@ def switch_someip_branch(branch_name: str):
     return result.returncode
 
 def build_vsomeip():
-    result = subprocess.run(["su", "-", "mehmet", "-c", f"{PROJECT_PATH}/build_vsomeip.bash"], stdout=subprocess.DEVNULL)
+    result = subprocess.run(["su", "-", "mehmet", "-c", f"{PROJECT_PATH}/build_vsomeip.bash"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return result.returncode
 
 if __name__ == '__main__':
