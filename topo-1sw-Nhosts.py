@@ -199,7 +199,8 @@ def switch_someip_branch(branch_name: str):
     return result.returncode
 
 def build_vsomeip():
-    subprocess.run(["su", "-", "mehmet", "-c", f"{PROJECT_PATH}/build_vsomeip.bash"])
+    result = subprocess.run(["su", "-", "mehmet", "-c", f"{PROJECT_PATH}/build_vsomeip.bash"], stdout=subprocess.DEVNULL)
+    return result.returncode
 
 if __name__ == '__main__':
     setLogLevel('info')
@@ -258,10 +259,18 @@ if __name__ == '__main__':
     set_dns_server_ip_in_vsomeip(net[dns_host_name])
     set_subscriber_count_to_record_in_vsomeip(host_count-1)
     # build vsomeip
-    build_vsomeip()
+    print("Building vsomeip ... ", end='')
+    build_return = build_vsomeip()
+    if build_return:
+        net.stop()
+        print("Failed.")
+        exit(1)
+    else:
+        print("Done.")
     # start statistics writer
     statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(host_count-1), f"{PROJECT_PATH}/statistic-results"])
     # create host configs and certificates
+    print("Creating host configs and certificates ... ", end='')
     create_publisher_config(net[PUBLISHER_HOST_NAME])
     create_service_certificate(net[PUBLISHER_HOST_NAME])
     set_client_certificate_paths(net[PUBLISHER_HOST_NAME], host_count-1)
@@ -272,7 +281,9 @@ if __name__ == '__main__':
             create_subscriber_config(host)
             create_client_certificate(host)
             set_service_certificate_path(host)
+    print("Done.")
     # start dns server
+    print("Starting DNS server and SOMEIP apps ... ", end='')
     start_dns_server(net[dns_host_name])
     # start someip publisher and subscribers
     start_someip_publisher_app(net[PUBLISHER_HOST_NAME])
@@ -280,14 +291,17 @@ if __name__ == '__main__':
         host_name = host.__str__()
         if host_name != PUBLISHER_HOST_NAME and host_name != dns_host_name:
             start_someip_subscriber_app(host)
+    print("Done.")
     # Wait for statistics writer
+    print("Wait until all statistics are contributed ... ", end='')
     return_code = statistics_writer_process.wait()
     if return_code == 0:
-        print("statistics writer executed successfully")
+        print("Done.")
     else:
         print(f"statistics writer failed with return code {return_code}")
     CLI(net)
     # stop someip publisher, subscribers and dns server
+    print("Stopping SOME/IP apps and DNS server, and cleaning up ... ", end='')
     for host in net.hosts:
         host_name: str = host.__str__()
         if host_name != dns_host_name:
@@ -304,6 +318,7 @@ if __name__ == '__main__':
     subprocess.run("rm -f /var/log/h*.log", shell=True)
     subprocess.run(f"rm -f {PROJECT_PATH}/vsomeip-configs/h*.json", shell=True)
     subprocess.run(f"rm -f {PROJECT_PATH}/certificates/*", shell=True)
+    print("Done.")
 else:
     # Command to start CLI w/ topo only: sudo -E mn --mac --controller none --custom ~/vscode-workspaces/topo-1sw-Nhosts.py --topo simple_topo
     topos = {'simple_topo': (lambda: simple_topo())}
