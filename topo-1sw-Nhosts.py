@@ -35,12 +35,10 @@ PROTOCOL = "UDP"
 # compile definitions
 WITH_SERVICE_AUTHENTICATION = 'WITH_SERVICE_AUTHENTICATION'
 WITH_CLIENT_AUTHENTICATION = 'WITH_CLIENT_AUTHENTICATION'
-WITH_ENCRYPTION = 'WITH_ENCRYPTION'
-WITH_SOMEIP_SD = 'WITH_SOMEIP_SD'
+NO_SOMEIP_SD = 'NO_SOMEIP_SD'
+WITH_DNSSEC = 'WITH_DNSSEC'
 WITH_DANE = 'WITH_DANE'
-# branches
-VANILLA = 'multiple_services/vanilla'
-DNS_AND_DANE = 'multiple_services/dns_and_dane'
+WITH_ENCRYPTION = 'WITH_ENCRYPTION'
 
 class simple_topo( Topo ):
     "Simple topology example."
@@ -100,16 +98,15 @@ def set_dns_server_ip(host, dns_host):
     config['dns-server-ip'] = f'{dns_host_ip_in_hex}'
     with open(host_config, 'w') as file:
         json.dump(config, file, indent=4)
-    # result = dns_host.cmd(f"grep \"#define DNS_SERVER_IP\" {PROJECT_PATH}/vsomeip/implementation/dnssec/include/someip_dns_parameters.hpp | awk '{{print $3}}'")
-    # current_dns_server_ip = result.strip()
-    # if current_dns_server_ip != dns_host_ip_in_hex:
-    #     dns_host.cmd(f"sed -i -E 's/#define DNS_SERVER_IP .*/#define DNS_SERVER_IP {dns_host_ip_in_hex}/' {PROJECT_PATH}/vsomeip/implementation/dnssec/include/someip_dns_parameters.hpp")
 
-def set_subscriber_count_to_record_in_vsomeip(subscriber_count_to_record: int):
-    result = subprocess.run(f"grep \"#define SUBSCRIBER_COUNT_TO_RECORD\" {PROJECT_PATH}/vsomeip/implementation/service_discovery/src/service_discovery_impl.cpp | awk '{{print $3}}'", shell=True, stdout=subprocess.PIPE, text=True)
-    current_subscriber_count = int(result.stdout.strip())
-    if current_subscriber_count != subscriber_count_to_record:
-        subprocess.run(f"sed -i -E 's/#define SUBSCRIBER_COUNT_TO_RECORD .*/#define SUBSCRIBER_COUNT_TO_RECORD {subscriber_count_to_record}/' {PROJECT_PATH}/vsomeip/implementation/service_discovery/src/service_discovery_impl.cpp", shell=True)
+def set_subscriber_count_to_record(host, subscriber_count_to_record: int):
+    host_name = host.__str__()
+    host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
+    with open(host_config, 'r') as file:
+        config = json.load(file)
+    config['subscriber-count-to-record'] = f'{subscriber_count_to_record}'
+    with open(host_config, 'w') as file:
+        json.dump(config, file, indent=4)
 
 def start_dns_server(dns_host):
     dns_host_ip = dns_host.IP(intf=dns_host.defaultIntf())
@@ -127,15 +124,17 @@ def create_subscriber_config(host):
     host_name = host.__str__()
     subscriber_config_template = f"{PROJECT_PATH}/vsomeip-configs/vsomeip-udp-mininet-subscriber.json"
     host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
-    host.cmd(f'cp {subscriber_config_template} {host_config}')
-    create_host_config(host, host_config)
+    if not Path(host_config).is_file():
+        host.cmd(f'cp {subscriber_config_template} {host_config}')
+        create_host_config(host, host_config)
 
 def create_publisher_config(host):
     host_name = host.__str__()
     publisher_config_template = f"{PROJECT_PATH}/vsomeip-configs/vsomeip-udp-mininet-publisher.json"
     host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
-    host.cmd(f'cp {publisher_config_template} {host_config}')
-    create_host_config(host, host_config)
+    if not Path(host_config).is_file():
+        host.cmd(f'cp {publisher_config_template} {host_config}')
+        create_host_config(host, host_config)
 
 def create_host_config(host, host_config: str):
     host_name = host.__str__()
@@ -144,29 +143,32 @@ def create_host_config(host, host_config: str):
     with open(host_config, 'r') as file:
         config = json.load(file)
     config['network'] = f'-{host_name}'
-    config['unicast'] = f'{unicast_ip}'
+    config['unicast'] = unicast_ip
     config['logging']['level'] = 'error'
     config['logging']['console'] = 'false'
     config['logging']['file']['enable'] = 'false'
     config['logging']['file']['path'] = f'/var/log/{host_name}.log'
-    config['applications'][0]['name'] = f'{host_name}'
-    config['applications'][0]['id'] = f'{host_id}'
+    config['applications'][0]['name'] = host_name
+    config['applications'][0]['id'] = host_id
     config['routing'] = f'{host_name}'
     with open(host_config, 'w') as file:
         json.dump(config, file, indent=4)
 
 def create_client_certificate(host):
     host_name = host.__str__()
-    host_id = str(host_name[1:])
-    host_ip = host.IP(intf=host.defaultIntf())
-    host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
-    host.cmd(f'{PROJECT_PATH}/client-svcb-and-tlsa-generator.bash {host_id} {SERVICE_ID} {INSTANCE_ID} {MAJOR_VERSION} {host_ip} {SUBSCRIBER_PORTS} {PROTOCOL} {host_name}')
-    with open(host_config, 'r') as file:
-        config = json.load(file)
-    config['certificate-path'] = f'{PROJECT_PATH}/certificates/{host_name}.client.cert.pem'
-    config['private-key-path'] = f'{PROJECT_PATH}/certificates/{host_name}.client.key.pem'
-    with open(host_config, 'w') as file:
-        json.dump(config, file, indent=4)
+    certificate = f'{PROJECT_PATH}/certificates/{host_name}.client.cert.pem'
+    private_key = f'{PROJECT_PATH}/certificates/{host_name}.client.key.pem'
+    if Path(certificate).is_file() and Path(private_key).is_file():
+        host_ip = host.IP(intf=host.defaultIntf())
+        host_id = str(host_name[1:])
+        host.cmd(f'{PROJECT_PATH}/client-svcb-and-tlsa-generator.bash {host_id} {SERVICE_ID} {INSTANCE_ID} {MAJOR_VERSION} {host_ip} {SUBSCRIBER_PORTS} {PROTOCOL} {host_name}')
+        host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
+        with open(host_config, 'r') as file:
+            config = json.load(file)
+        config['certificate-path'] = certificate
+        config['private-key-path'] = private_key
+        with open(host_config, 'w') as file:
+            json.dump(config, file, indent=4)
 
 def set_service_certificate_path(host):
     host_name = host.__str__()
@@ -179,15 +181,18 @@ def set_service_certificate_path(host):
 
 def create_service_certificate(host):
     host_name = host.__str__()
-    host_ip = host.IP(intf=host.defaultIntf())
-    host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
-    host.cmd(f'{PROJECT_PATH}/service-svcb-and-tlsa-generator.bash {SERVICE_ID} {INSTANCE_ID} {MAJOR_VERSION} {MINOR_VERSION} {host_ip} {PUBLISHER_PORT} {PROTOCOL} {host_name}')
-    with open(host_config, 'r') as file:
-        config = json.load(file)
-    config['certificate-path'] = f'{PROJECT_PATH}/certificates/{host_name}.service.cert.pem'
-    config['private-key-path'] = f'{PROJECT_PATH}/certificates/{host_name}.service.key.pem'
-    with open(host_config, 'w') as file:
-        json.dump(config, file, indent=4)
+    certificate = f'{PROJECT_PATH}/certificates/{host_name}.service.cert.pem'
+    private_key = f'{PROJECT_PATH}/certificates/{host_name}.service.key.pem'
+    if Path(certificate).is_file() and Path(private_key).is_file():
+        host_ip = host.IP(intf=host.defaultIntf())
+        host.cmd(f'{PROJECT_PATH}/service-svcb-and-tlsa-generator.bash {SERVICE_ID} {INSTANCE_ID} {MAJOR_VERSION} {MINOR_VERSION} {host_ip} {PUBLISHER_PORT} {PROTOCOL} {host_name}')
+        host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
+        with open(host_config, 'r') as file:
+            config = json.load(file)
+        config['certificate-path'] = certificate
+        config['private-key-path'] = private_key
+        with open(host_config, 'w') as file:
+            json.dump(config, file, indent=4)
 
 
 def set_client_certificate_paths(host, subscriber_count: int):
@@ -226,73 +231,59 @@ def switch_someip_branch(branch_name: str):
     return result.returncode
 
 def build_vsomeip():
-    result = subprocess.run(["su", "-", "mehmet", "-c", f"{PROJECT_PATH}/build_vsomeip.bash"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return result.returncode
+    subprocess.run(["su", "-", "mehmet", "-c", f"{PROJECT_PATH}/build_vsomeip.bash"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 if __name__ == '__main__':
     setLogLevel('info')
     maximum_possible_hosts: int = 0xffff
     parser = argparse.ArgumentParser(description='Starts vsomeip w/ or w/o security mechanisms and collects timestamps of handshake events')
     parser.add_argument('--hosts', type=int, metavar='N', required=True, choices=range(2,0xffff+1), help='Specify the number of hosts. (between 2 (inclusive) and 65536 (exclusive))')
-    parser.add_argument('--evaluate', choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'], required=True, help="""A: vanilla (vsomeip as it is),
+    parser.add_argument('--evaluate', choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'], required=True, help="""A: vanilla (vsomeip as it is),
                                                                                                                         B: w/ service authentication,
-                                                                                                                        C: w/ service and client authentication,
-                                                                                                                        D: w/ service and client authentication + payload encryption,
-                                                                                                                        E: w/ DNSSEC w/o SOME/IP SD,
-                                                                                                                        F: w/ DNSSEC + SOME/IP SD,
-                                                                                                                        G: w/ DNSSEC + DANE w/o SOME/IP SD,
-                                                                                                                        H: w/ DNSSEC + DANE + SOME/IP SD,
-                                                                                                                        I: w/ DNSSEC + DANE + SOME/IP SD + client authentication,
-                                                                                                                        J: w/ DNSSEC + DANE + SOME/IP SD + client authentication + payload encryption""")
+                                                                                                                        C: w/ DNSSEC w/o SOME/IP SD,
+                                                                                                                        D: w/ service authentication + DNSSEC + DANE w/o SOME/IP SD,
+                                                                                                                        E: w/ service and client authentiction,
+                                                                                                                        F: w/ service and client authentiction + payload encryption,
+                                                                                                                        G: w/ service and client authentication + DNSSEC + DANE,
+                                                                                                                        H: w/ service and client authentication + DNSSEC + DANE + payload encryption""")
+    parser.add_argument('--clean-start', dest='clean_start', action='store_true', help='Removes certificates and host configs causing them to be recreated')
+
     args = parser.parse_args()
     host_count: int = args.hosts
     evaluation_option: str = args.evaluate
     compile_definitions = {'A':'',
                            'B':f'{WITH_SERVICE_AUTHENTICATION}',
-                           'C':f'{WITH_SERVICE_AUTHENTICATION} {WITH_CLIENT_AUTHENTICATION}',
-                           'D':f'{WITH_SERVICE_AUTHENTICATION} {WITH_CLIENT_AUTHENTICATION} {WITH_ENCRYPTION}',
-                           'E':'',
-                           'F':f'{WITH_SOMEIP_SD}',
-                           'G':f'{WITH_DANE}',
-                           'H':f'{WITH_DANE} {WITH_SOMEIP_SD}',
-                           'I':f'{WITH_DANE} {WITH_SOMEIP_SD} {WITH_CLIENT_AUTHENTICATION}',
-                           'J':f'{WITH_DANE} {WITH_SOMEIP_SD} {WITH_CLIENT_AUTHENTICATION} {WITH_ENCRYPTION}'}
-    # branches = {'A':VANILLA,
-    #             'B':VANILLA,
-    #             'C':VANILLA,
-    #             'D':VANILLA,
-    #             'E':DNS_AND_DANE,
-    #             'F':DNS_AND_DANE,
-    #             'G':DNS_AND_DANE,
-    #             'H':DNS_AND_DANE,
-    #             'I':DNS_AND_DANE,
-    #             'J':DNS_AND_DANE,}
-    # switch_branch = branches[evaluation_option]
+                           'C':f'{NO_SOMEIP_SD} {WITH_DNSSEC}',
+                           'D':f'{WITH_SERVICE_AUTHENTICATION} {NO_SOMEIP_SD} {WITH_DNSSEC} {WITH_DANE}',
+                           'E':f'{WITH_SERVICE_AUTHENTICATION} {WITH_CLIENT_AUTHENTICATION}',
+                           'F':f'{WITH_SERVICE_AUTHENTICATION} {WITH_CLIENT_AUTHENTICATION} {WITH_ENCRYPTION}',
+                           'G':f'{WITH_SERVICE_AUTHENTICATION} {WITH_CLIENT_AUTHENTICATION} {WITH_DNSSEC} {WITH_DANE}',
+                           'H':f'{WITH_SERVICE_AUTHENTICATION} {WITH_CLIENT_AUTHENTICATION} {WITH_DNSSEC} {WITH_DANE} {WITH_ENCRYPTION}'}
     add_compile_definitions = compile_definitions[evaluation_option]
-    # if switch_someip_branch(switch_branch):
-    #     print("Couldn't switch branch. Check git repository state.")
-    #     exit(1)
+
+    # remove configs and certificates for clean start
+    if args.clean_start:
+        subprocess.run(f"rm -f {PROJECT_PATH}/vsomeip-configs/h*.json", shell=True)
+        subprocess.run(f"rm -f {PROJECT_PATH}/certificates/*", shell=True)
 
     # build mininet network
-    topo: simple_topo = simple_topo(n = host_count+1)
+    if WITH_DNSSEC in add_compile_definitions:
+        topo: simple_topo = simple_topo(n = host_count+1)
+        dns_host_name: str = f"h{host_count+1}"
+        reset_zone_files()
+    else:
+        topo: simple_topo = simple_topo(n = host_count+1)
+        dns_host_name: str = ""
     net: Mininet = Mininet(topo=topo, controller=None, link=TCLink)
     net.start()
     for switch in net.switches:
         make_switch_traditional(net, switch.__str__())
-    # setup dns relevant stuff
-    reset_zone_files()
-    dns_host_name: str = f"h{host_count+1}"
-    # setup vsomeip
-    set_subscriber_count_to_record_in_vsomeip(host_count-1)
     # build vsomeip
     print("Building vsomeip ... ")
-    build_return = build_vsomeip()
-    if build_return:
-        net.stop()
-        print("Failed.")
-        exit(1)
-    else:
-        print("Done.")
+    # set compile definitions
+    subprocess.run(f"sed -i -E 's/add_compile_definitions.*/add_compile_definitions\({add_compile_definitions}\)/' {PROJECT_PATH}/vsomeip/CMakeLists.txt", shell=True)
+    build_vsomeip()
+    print("Done.")
     # start statistics writer
     print("Starting statistics-writer ...")
     statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(host_count-1), f"{PROJECT_PATH}/statistic-results"])
@@ -309,13 +300,16 @@ if __name__ == '__main__':
             create_subscriber_config(host)
             create_client_certificate(host)
             set_service_certificate_path(host)
-        if host_name != dns_host_name:
+        if len(dns_host_name) and host_name != dns_host_name:
             set_dns_server_ip(host, net[dns_host_name])
+        if host_name != dns_host_name:
+            set_subscriber_count_to_record(host, host_count-1)
     print("Done.")
     # start dns server
-    print("Starting DNS server ... ")
-    start_dns_server(net[dns_host_name])
-    print("Done.")
+    if WITH_DNSSEC in add_compile_definitions:
+        print("Starting DNS server ... ")
+        start_dns_server(net[dns_host_name])
+        print("Done.")
     # start someip publisher and subscribers
     print("Starting SOME/IP publisher ... ")
     start_someip_publisher_app(net[PUBLISHER_HOST_NAME])
@@ -332,7 +326,7 @@ if __name__ == '__main__':
             start_someip_subscriber_app(host)
     print("Done.")
     # Wait for statistics writer
-    print("Wait until all statistics are contributed ... ")
+    print("Waiting until all statistics are contributed ... ")
     return_code = statistics_writer_process.wait()
     if return_code == 0:
         print("Done.")
@@ -348,15 +342,14 @@ if __name__ == '__main__':
                 stop_subscriber_app(host)
             else:
                 stop_publisher_app(host)
-    stop_dns_server(net[dns_host_name])
+    if WITH_DNSSEC in add_compile_definitions:
+        stop_dns_server(net[dns_host_name])
     net.stop()
     #cleanup
     reset_zone_files()
     subprocess.run(["pkill", "statistics-writ"])
     subprocess.run(f"rm -f {PROJECT_PATH}/vsomeip-h*", shell=True)
     subprocess.run("rm -f /var/log/h*.log", shell=True)
-    subprocess.run(f"rm -f {PROJECT_PATH}/vsomeip-configs/h*.json", shell=True)
-    subprocess.run(f"rm -f {PROJECT_PATH}/certificates/*", shell=True)
     subprocess.run(f"rm -f {PROJECT_PATH}/publisher-initialized", shell=True)
     print("Done.")
 else:
