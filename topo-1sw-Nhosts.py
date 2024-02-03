@@ -237,10 +237,99 @@ def build_vsomeip():
     subprocess.run(f'su - mehmet -c "$(which cmake) --build {PROJECT_PATH}/vsomeip/build --config Release --target examples -- -j$(nproc)"', shell=True)
     subprocess.run(f'su - mehmet -c "$(which cmake) --build {PROJECT_PATH}/vsomeip/build --config Release --target statistics-writer -- -j$(nproc)"', shell=True)
 
+def cleanup():
+    subprocess.run(["pkill", "statistics-writ"])
+    subprocess.run(f"rm -f {PROJECT_PATH}/vsomeip-h*", shell=True)
+    subprocess.run("rm -f /var/log/h*.log", shell=True)
+    subprocess.run(f"rm -f {PROJECT_PATH}/publisher-initialized", shell=True)
+
+def start_evaluation(total_evaluation_runs: int, evaluation_option: str, subscriber_count: int, add_compile_definitions: str, net: Mininet, dns_host_name: str):
+    entire_evaluation_start = time.time()
+    current_run = 1
+    while current_run <= total_evaluation_runs:
+        print(f"Starting {current_run}/{total_evaluation_runs} evaluation run {evaluation_option} ... ")
+        # start statistics writer
+        print("Starting statistics-writer ...")
+        statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(subscriber_count), f"{PROJECT_PATH}/statistic-results", evaluation_option])
+        print("Done.")
+        # start dns server
+        if WITH_DNSSEC in add_compile_definitions:
+            print("Starting DNS server ... ")
+            start_dns_server(net[dns_host_name])
+            print("Done.")
+        # start someip publisher and subscribers
+        print("Starting SOME/IP publisher ... ")
+        start_someip_publisher_app(net[PUBLISHER_HOST_NAME])
+        publisher_initialized_file = Path(f"{PROJECT_PATH}/publisher-initialized")
+        while not publisher_initialized_file.is_file():
+            time.sleep(1)
+        # Give extra time for startup (seems making evaluation more stable)
+        time.sleep(3) 
+        print("Done.")
+        print("Starting SOME/IP subscribers ... ")
+        for host in net.hosts:
+            host_name = host.__str__()
+            if host_name != PUBLISHER_HOST_NAME and host_name != dns_host_name:
+                start_someip_subscriber_app(host)
+        print("Done.")
+        evaluation_run_start = time.time()
+        # Wait for statistics writer
+        print("Waiting until all statistics are contributed ... ")
+        return_code = statistics_writer_process.wait(timeout=5)
+        if return_code == 0:
+            print("Done.")
+            evaluation_run_end = time.time()
+            print(f"\n\t{current_run}/{total_evaluation_runs} evaluation run {evaluation_option} finished successfully and took {evaluation_run_end-evaluation_run_start} seconds\n")
+            current_run += 1
+        else:
+            print(f"statistics writer failed with return code {return_code}")
+            print(f"{current_run}/{total_evaluation_runs} evaluation run {evaluation_option} failed and will be repeated")
+        # stop someip publisher, subscribers and dns server
+        print("Stopping SOME/IP apps and DNS server, and cleaning up ... ")
+        for host in net.hosts:
+            host_name: str = host.__str__()
+            if host_name != dns_host_name:
+                if host_name != PUBLISHER_HOST_NAME:
+                    stop_subscriber_app(host)
+                else:
+                    stop_publisher_app(host)
+        if WITH_DNSSEC in add_compile_definitions:
+            stop_dns_server(net[dns_host_name])
+        cleanup()
+        print("Done.")
+    entire_evaluation_end = time.time()
+    print(f"\n\tThe entire evaluation took {entire_evaluation_end - entire_evaluation_start} seconds\n")
+
+def start_debug(evaluation_option: str, subscriber_count: int, add_compile_definitions: str, net: Mininet, dns_host_name: str):
+    # start statistics writer
+    print("Starting statistics-writer ...")
+    subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(subscriber_count), f"{PROJECT_PATH}/statistic-results", evaluation_option])
+    print("Done.")
+    # start dns server
+    if WITH_DNSSEC in add_compile_definitions:
+        print("Starting DNS server ... ")
+        start_dns_server(net[dns_host_name])
+        print("Done.")
+    CLI(net)
+    # stop someip publisher, subscribers and dns server
+    print("Stopping SOME/IP apps and DNS server, and cleaning up ... ")
+    for host in net.hosts:
+        host_name: str = host.__str__()
+        if host_name != dns_host_name:
+            if host_name != PUBLISHER_HOST_NAME:
+                stop_subscriber_app(host)
+            else:
+                stop_publisher_app(host)
+    if WITH_DNSSEC in add_compile_definitions:
+        stop_dns_server(net[dns_host_name])
+    cleanup()
+    print("Done.")
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Starts vsomeip w/ or w/o security mechanisms and collects timestamps of handshake events')
     parser.add_argument('--hosts', type=int, metavar='N', required=True, choices=range(2,0xffff+1), help='Specify the number of hosts. (between 2 (inclusive) and 65536 (exclusive))')
-    parser.add_argument('--evaluate', choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'], required=True, help="""A: vanilla (vsomeip as it is),
+    parser.add_argument('--evaluate', choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'], required=False, help="""A: vanilla (vsomeip as it is),
                                                                                                                         B: w/ service authentication,
                                                                                                                         C: w/ DNSSEC w/o SOME/IP SD,
                                                                                                                         D: w/ service authentication + DNSSEC + DANE w/o SOME/IP SD,
@@ -252,8 +341,13 @@ if __name__ == '__main__':
     parser.add_argument('--clean-start', dest='clean_start', action='store_true', help='Removes certificates and host configs causing them to be recreated')
 
     args = parser.parse_args()
+    if args.evaluate and not args.runs:
+        print("--runs is required when --evaluate is provided")
+        exit(1)
     host_count: int = args.hosts
+    subscriber_count: int = host_count-1
     evaluation_option: str = args.evaluate
+    total_evaluation_runs: int = args.runs
     compile_definitions = {'A':'',
                            'B':f'{WITH_SERVICE_AUTHENTICATION}',
                            'C':f'{NO_SOMEIP_SD} {WITH_DNSSEC}',
@@ -296,7 +390,7 @@ if __name__ == '__main__':
     print("Creating host configs and certificates ... ")
     create_publisher_config(net[PUBLISHER_HOST_NAME])
     create_service_certificate(net[PUBLISHER_HOST_NAME])
-    set_client_certificate_paths(net[PUBLISHER_HOST_NAME], host_count-1)
+    set_client_certificate_paths(net[PUBLISHER_HOST_NAME], subscriber_count)
     for host in net.hosts:
         add_default_route(host)
         host_name = host.__str__()
@@ -307,68 +401,13 @@ if __name__ == '__main__':
         if len(dns_host_name) and host_name != dns_host_name:
             set_dns_server_ip(host, net[dns_host_name])
         if host_name != dns_host_name:
-            set_subscriber_count_to_record(host, host_count-1)
+            set_subscriber_count_to_record(host, subscriber_count)
     print("Done.")
-    entire_evaluation_start = time.time()
-    current_run = 1
-    while current_run <= args.runs:
-        print(f"Starting {current_run}/{args.runs} evaluation run {evaluation_option} ... ")
-        # start statistics writer
-        print("Starting statistics-writer ...")
-        statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(host_count-1), f"{PROJECT_PATH}/statistic-results", args.evaluate])
-        print("Done.")
-        # start dns server
-        if WITH_DNSSEC in add_compile_definitions:
-            print("Starting DNS server ... ")
-            start_dns_server(net[dns_host_name])
-            print("Done.")
-        # start someip publisher and subscribers
-        print("Starting SOME/IP publisher ... ")
-        start_someip_publisher_app(net[PUBLISHER_HOST_NAME])
-        publisher_initialized_file = Path(f"{PROJECT_PATH}/publisher-initialized")
-        while not publisher_initialized_file.is_file():
-            time.sleep(1)
-        # Give extra time for startup (seems making evaluation more stable)
-        time.sleep(3) 
-        print("Done.")
-        print("Starting SOME/IP subscribers ... ")
-        for host in net.hosts:
-            host_name = host.__str__()
-            if host_name != PUBLISHER_HOST_NAME and host_name != dns_host_name:
-                start_someip_subscriber_app(host)
-        print("Done.")
-        evaluation_run_start = time.time()
-        # Wait for statistics writer
-        print("Waiting until all statistics are contributed ... ")
-        return_code = statistics_writer_process.wait(timeout=5)
-        if return_code == 0:
-            print("Done.")
-            evaluation_run_end = time.time()
-            print(f"\n\t{current_run}/{args.runs} evaluation run {evaluation_option} finished successfully and took {evaluation_run_end-evaluation_run_start} seconds\n")
-            current_run += 1
-        else:
-            print(f"statistics writer failed with return code {return_code}")
-            print(f"{current_run}/{args.runs} evaluation run {evaluation_option} failed and will be repeated")
-        # CLI(net)
-        # stop someip publisher, subscribers and dns server
-        print("Stopping SOME/IP apps and DNS server, and cleaning up ... ")
-        for host in net.hosts:
-            host_name: str = host.__str__()
-            if host_name != dns_host_name:
-                if host_name != PUBLISHER_HOST_NAME:
-                    stop_subscriber_app(host)
-                else:
-                    stop_publisher_app(host)
-        if WITH_DNSSEC in add_compile_definitions:
-            stop_dns_server(net[dns_host_name])
-        #cleanup
-        subprocess.run(["pkill", "statistics-writ"])
-        subprocess.run(f"rm -f {PROJECT_PATH}/vsomeip-h*", shell=True)
-        subprocess.run("rm -f /var/log/h*.log", shell=True)
-        subprocess.run(f"rm -f {PROJECT_PATH}/publisher-initialized", shell=True)
-        print("Done.")
-    entire_evaluation_end = time.time()
-    print(f"\n\tThe entire evaluation took {entire_evaluation_end - entire_evaluation_start} seconds\n")
+    # Evaluate
+    if args.evaluate:
+        start_evaluation(total_evaluation_runs, evaluation_option, subscriber_count, add_compile_definitions, net, dns_host_name)
+    else:
+        start_debug(evaluation_option, subscriber_count, add_compile_definitions, net, dns_host_name)
     print("Stopping mininet network")
     net.stop()
     print("Done.")
