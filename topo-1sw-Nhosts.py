@@ -325,6 +325,7 @@ if __name__ == '__main__':
         if host_name != PUBLISHER_HOST_NAME and host_name != dns_host_name:
             start_someip_subscriber_app(host)
     print("Done.")
+    evaluation_start = time.time()
     # Wait for statistics writer
     print("Waiting until all statistics are contributed ... ")
     return_code = statistics_writer_process.wait()
@@ -332,6 +333,8 @@ if __name__ == '__main__':
         print("Done.")
     else:
         print(f"statistics writer failed with return code {return_code}")
+    evaluation_end = time.time()
+    print(f"\nEvaluation took {evaluation_end-evaluation_start} seconds\n")
     CLI(net)
     # stop someip publisher, subscribers and dns server
     print("Stopping SOME/IP apps and DNS server, and cleaning up ... ")
@@ -346,7 +349,6 @@ if __name__ == '__main__':
         stop_dns_server(net[dns_host_name])
     net.stop()
     #cleanup
-    reset_zone_files()
     subprocess.run(["pkill", "statistics-writ"])
     subprocess.run(f"rm -f {PROJECT_PATH}/vsomeip-h*", shell=True)
     subprocess.run("rm -f /var/log/h*.log", shell=True)
