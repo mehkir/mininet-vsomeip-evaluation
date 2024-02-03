@@ -158,7 +158,7 @@ def create_client_certificate(host):
     host_name = host.__str__()
     certificate = f'{PROJECT_PATH}/certificates/{host_name}.client.cert.pem'
     private_key = f'{PROJECT_PATH}/certificates/{host_name}.client.key.pem'
-    if Path(certificate).is_file() and Path(private_key).is_file():
+    if not (Path(certificate).is_file() and Path(private_key).is_file()):
         host_ip = host.IP(intf=host.defaultIntf())
         host_id = str(host_name[1:])
         host.cmd(f'{PROJECT_PATH}/client-svcb-and-tlsa-generator.bash {host_id} {SERVICE_ID} {INSTANCE_ID} {MAJOR_VERSION} {host_ip} {SUBSCRIBER_PORTS} {PROTOCOL} {host_name}')
@@ -183,7 +183,7 @@ def create_service_certificate(host):
     host_name = host.__str__()
     certificate = f'{PROJECT_PATH}/certificates/{host_name}.service.cert.pem'
     private_key = f'{PROJECT_PATH}/certificates/{host_name}.service.key.pem'
-    if Path(certificate).is_file() and Path(private_key).is_file():
+    if not (Path(certificate).is_file() and Path(private_key).is_file()):
         host_ip = host.IP(intf=host.defaultIntf())
         host.cmd(f'{PROJECT_PATH}/service-svcb-and-tlsa-generator.bash {SERVICE_ID} {INSTANCE_ID} {MAJOR_VERSION} {MINOR_VERSION} {host_ip} {PUBLISHER_PORT} {PROTOCOL} {host_name}')
         host_config = f"{PROJECT_PATH}/vsomeip-configs/{host_name}.json"
@@ -231,11 +231,13 @@ def switch_someip_branch(branch_name: str):
     return result.returncode
 
 def build_vsomeip():
-    subprocess.run(["su", "-", "mehmet", "-c", f"{PROJECT_PATH}/build_vsomeip.bash"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # subprocess.run(["su", "-", "mehmet", "-c", f"{PROJECT_PATH}/build_vsomeip.bash"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(f'su - mehmet -c "cmake -B {PROJECT_PATH}/vsomeip/build -S {PROJECT_PATH}/vsomeip"', shell=True)
+    subprocess.run(f'su - mehmet -c "$(which cmake) --build {PROJECT_PATH}/vsomeip/build --config Release --target all -- -j$(nproc)"', shell=True)
+    subprocess.run(f'su - mehmet -c "$(which cmake) --build {PROJECT_PATH}/vsomeip/build --config Release --target examples -- -j$(nproc)"', shell=True)
+    subprocess.run(f'su - mehmet -c "$(which cmake) --build {PROJECT_PATH}/vsomeip/build --config Release --target statistics-writer -- -j$(nproc)"', shell=True)
 
 if __name__ == '__main__':
-    setLogLevel('info')
-    maximum_possible_hosts: int = 0xffff
     parser = argparse.ArgumentParser(description='Starts vsomeip w/ or w/o security mechanisms and collects timestamps of handshake events')
     parser.add_argument('--hosts', type=int, metavar='N', required=True, choices=range(2,0xffff+1), help='Specify the number of hosts. (between 2 (inclusive) and 65536 (exclusive))')
     parser.add_argument('--evaluate', choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'], required=True, help="""A: vanilla (vsomeip as it is),
@@ -246,6 +248,7 @@ if __name__ == '__main__':
                                                                                                                         F: w/ service and client authentiction + payload encryption,
                                                                                                                         G: w/ service and client authentication + DNSSEC + DANE,
                                                                                                                         H: w/ service and client authentication + DNSSEC + DANE + payload encryption""")
+    parser.add_argument('--runs', type=int, metavar='N', required=True, help='Specify the number of runs for the evaluation')
     parser.add_argument('--clean-start', dest='clean_start', action='store_true', help='Removes certificates and host configs causing them to be recreated')
 
     args = parser.parse_args()
@@ -263,30 +266,31 @@ if __name__ == '__main__':
 
     # remove configs and certificates for clean start
     if args.clean_start:
+        print("Removing configs and certificates ... ")
         subprocess.run(f"rm -f {PROJECT_PATH}/vsomeip-configs/h*.json", shell=True)
         subprocess.run(f"rm -f {PROJECT_PATH}/certificates/*", shell=True)
+        reset_zone_files()
+        print("Done.")
 
     # build mininet network
+    print("Building mininet network ... ")
+    setLogLevel('critical')
     if WITH_DNSSEC in add_compile_definitions:
         topo: simple_topo = simple_topo(n = host_count+1)
         dns_host_name: str = f"h{host_count+1}"
-        reset_zone_files()
     else:
-        topo: simple_topo = simple_topo(n = host_count+1)
+        topo: simple_topo = simple_topo(n = host_count)
         dns_host_name: str = ""
     net: Mininet = Mininet(topo=topo, controller=None, link=TCLink)
     net.start()
     for switch in net.switches:
         make_switch_traditional(net, switch.__str__())
+    print("Done.")
     # build vsomeip
     print("Building vsomeip ... ")
     # set compile definitions
     subprocess.run(f"sed -i -E 's/add_compile_definitions.*/add_compile_definitions\({add_compile_definitions}\)/' {PROJECT_PATH}/vsomeip/CMakeLists.txt", shell=True)
     build_vsomeip()
-    print("Done.")
-    # start statistics writer
-    print("Starting statistics-writer ...")
-    statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(host_count-1), f"{PROJECT_PATH}/statistic-results"])
     print("Done.")
     # create host configs and certificates
     print("Creating host configs and certificates ... ")
@@ -305,54 +309,68 @@ if __name__ == '__main__':
         if host_name != dns_host_name:
             set_subscriber_count_to_record(host, host_count-1)
     print("Done.")
-    # start dns server
-    if WITH_DNSSEC in add_compile_definitions:
-        print("Starting DNS server ... ")
-        start_dns_server(net[dns_host_name])
+    entire_evaluation_start = time.time()
+    current_run = 1
+    while current_run <= args.runs:
+        print(f"Starting {current_run}. run ... ")
+        # start statistics writer
+        print("Starting statistics-writer ...")
+        statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(host_count-1), f"{PROJECT_PATH}/statistic-results", args.evaluate])
         print("Done.")
-    # start someip publisher and subscribers
-    print("Starting SOME/IP publisher ... ")
-    start_someip_publisher_app(net[PUBLISHER_HOST_NAME])
-    publisher_initialized_file = Path(f"{PROJECT_PATH}/publisher-initialized")
-    while not publisher_initialized_file.is_file():
-        time.sleep(1)
-    # Give extra time for startup (seems making evaluation more stable)
-    time.sleep(3) 
-    print("Done.")
-    print("Starting SOME/IP subscribers ... ")
-    for host in net.hosts:
-        host_name = host.__str__()
-        if host_name != PUBLISHER_HOST_NAME and host_name != dns_host_name:
-            start_someip_subscriber_app(host)
-    print("Done.")
-    evaluation_start = time.time()
-    # Wait for statistics writer
-    print("Waiting until all statistics are contributed ... ")
-    return_code = statistics_writer_process.wait()
-    if return_code == 0:
+        # start dns server
+        if WITH_DNSSEC in add_compile_definitions:
+            print("Starting DNS server ... ")
+            start_dns_server(net[dns_host_name])
+            print("Done.")
+        # start someip publisher and subscribers
+        print("Starting SOME/IP publisher ... ")
+        start_someip_publisher_app(net[PUBLISHER_HOST_NAME])
+        publisher_initialized_file = Path(f"{PROJECT_PATH}/publisher-initialized")
+        while not publisher_initialized_file.is_file():
+            time.sleep(1)
+        # Give extra time for startup (seems making evaluation more stable)
+        time.sleep(3) 
         print("Done.")
-    else:
-        print(f"statistics writer failed with return code {return_code}")
-    evaluation_end = time.time()
-    print(f"\nEvaluation took {evaluation_end-evaluation_start} seconds\n")
-    CLI(net)
-    # stop someip publisher, subscribers and dns server
-    print("Stopping SOME/IP apps and DNS server, and cleaning up ... ")
-    for host in net.hosts:
-        host_name: str = host.__str__()
-        if host_name != dns_host_name:
-            if host_name != PUBLISHER_HOST_NAME:
-                stop_subscriber_app(host)
-            else:
-                stop_publisher_app(host)
-    if WITH_DNSSEC in add_compile_definitions:
-        stop_dns_server(net[dns_host_name])
+        print("Starting SOME/IP subscribers ... ")
+        for host in net.hosts:
+            host_name = host.__str__()
+            if host_name != PUBLISHER_HOST_NAME and host_name != dns_host_name:
+                start_someip_subscriber_app(host)
+        print("Done.")
+        evaluation_run_start = time.time()
+        # Wait for statistics writer
+        print("Waiting until all statistics are contributed ... ")
+        return_code = statistics_writer_process.wait(timeout=5)
+        if return_code == 0:
+            print("Done.")
+            evaluation_run_end = time.time()
+            print(f"\n\tThe {current_run}. evaluation run finished successfully and took {evaluation_run_end-evaluation_run_start} seconds\n")
+            current_run += 1
+        else:
+            print(f"statistics writer failed with return code {return_code}")
+            print(f"The {current_run}. evaluation run failed and will be repeated")
+        # CLI(net)
+        # stop someip publisher, subscribers and dns server
+        print("Stopping SOME/IP apps and DNS server, and cleaning up ... ")
+        for host in net.hosts:
+            host_name: str = host.__str__()
+            if host_name != dns_host_name:
+                if host_name != PUBLISHER_HOST_NAME:
+                    stop_subscriber_app(host)
+                else:
+                    stop_publisher_app(host)
+        if WITH_DNSSEC in add_compile_definitions:
+            stop_dns_server(net[dns_host_name])
+        #cleanup
+        subprocess.run(["pkill", "statistics-writ"])
+        subprocess.run(f"rm -f {PROJECT_PATH}/vsomeip-h*", shell=True)
+        subprocess.run("rm -f /var/log/h*.log", shell=True)
+        subprocess.run(f"rm -f {PROJECT_PATH}/publisher-initialized", shell=True)
+        print("Done.")
+    entire_evaluation_end = time.time()
+    print(f"\n\tThe entire evaluation took {entire_evaluation_end - entire_evaluation_start} seconds\n")
+    print("Stopping mininet network")
     net.stop()
-    #cleanup
-    subprocess.run(["pkill", "statistics-writ"])
-    subprocess.run(f"rm -f {PROJECT_PATH}/vsomeip-h*", shell=True)
-    subprocess.run("rm -f /var/log/h*.log", shell=True)
-    subprocess.run(f"rm -f {PROJECT_PATH}/publisher-initialized", shell=True)
     print("Done.")
 else:
     # Command to start CLI w/ topo only: sudo -E mn --mac --controller none --custom ~/vscode-workspaces/topo-1sw-Nhosts.py --topo simple_topo
