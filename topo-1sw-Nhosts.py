@@ -404,7 +404,7 @@ if __name__ == '__main__':
             set_subscriber_count_to_record(host, subscriber_count)
     print("Done.")
     # Evaluate
-    if args.evaluate:
+    if args.evaluate and args.runs:
         start_evaluation(total_evaluation_runs, evaluation_option, subscriber_count, add_compile_definitions, net, dns_host_name)
     else:
         start_debug(evaluation_option, subscriber_count, add_compile_definitions, net, dns_host_name)
