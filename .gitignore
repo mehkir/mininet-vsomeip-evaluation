@@ -6,3 +6,4 @@ nsd_control.pem
 nsd_server.key
 nsd_server.pem
 certificates/
+vsomeip-configs/h*.json
