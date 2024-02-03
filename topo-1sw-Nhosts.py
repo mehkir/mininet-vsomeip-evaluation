@@ -312,7 +312,7 @@ if __name__ == '__main__':
     entire_evaluation_start = time.time()
     current_run = 1
     while current_run <= args.runs:
-        print(f"Starting {current_run}. run ... ")
+        print(f"Starting {current_run}/{args.runs} evaluation run {evaluation_option} ... ")
         # start statistics writer
         print("Starting statistics-writer ...")
         statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(host_count-1), f"{PROJECT_PATH}/statistic-results", args.evaluate])
@@ -344,11 +344,11 @@ if __name__ == '__main__':
         if return_code == 0:
             print("Done.")
             evaluation_run_end = time.time()
-            print(f"\n\tThe {current_run}. evaluation run finished successfully and took {evaluation_run_end-evaluation_run_start} seconds\n")
+            print(f"\n\t{current_run}/{args.runs} evaluation run {evaluation_option} finished successfully and took {evaluation_run_end-evaluation_run_start} seconds\n")
             current_run += 1
         else:
             print(f"statistics writer failed with return code {return_code}")
-            print(f"The {current_run}. evaluation run failed and will be repeated")
+            print(f"{current_run}/{args.runs} evaluation run {evaluation_option} failed and will be repeated")
         # CLI(net)
         # stop someip publisher, subscribers and dns server
         print("Stopping SOME/IP apps and DNS server, and cleaning up ... ")
