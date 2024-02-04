@@ -144,9 +144,9 @@ def create_host_config(host, host_config: str):
         config = json.load(file)
     config['network'] = f'-{host_name}'
     config['unicast'] = unicast_ip
-    config['logging']['level'] = 'error'
-    config['logging']['console'] = 'false'
-    config['logging']['file']['enable'] = 'false'
+    config['logging']['level'] = 'debug'
+    config['logging']['console'] = 'true'
+    config['logging']['file']['enable'] = 'true'
     config['logging']['file']['path'] = f'/var/log/{host_name}.log'
     config['applications'][0]['name'] = host_name
     config['applications'][0]['id'] = host_id
@@ -329,7 +329,7 @@ def start_debug(evaluation_option: str, subscriber_count: int, add_compile_defin
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Starts vsomeip w/ or w/o security mechanisms and collects timestamps of handshake events')
     parser.add_argument('--hosts', type=int, metavar='N', required=True, choices=range(2,0xffff+1), help='Specify the number of hosts. (between 2 (inclusive) and 65536 (exclusive))')
-    parser.add_argument('--evaluate', choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'], required=False, help="""A: vanilla (vsomeip as it is),
+    parser.add_argument('--evaluate', choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'], required=True, help="""A: vanilla (vsomeip as it is),
                                                                                                                         B: w/ service authentication,
                                                                                                                         C: w/ DNSSEC w/o SOME/IP SD,
                                                                                                                         D: w/ service authentication + DNSSEC + DANE w/o SOME/IP SD,
@@ -337,13 +337,10 @@ if __name__ == '__main__':
                                                                                                                         F: w/ service and client authentiction + payload encryption,
                                                                                                                         G: w/ service and client authentication + DNSSEC + DANE,
                                                                                                                         H: w/ service and client authentication + DNSSEC + DANE + payload encryption""")
-    parser.add_argument('--runs', type=int, metavar='N', required=True, help='Specify the number of runs for the evaluation')
+    parser.add_argument('--runs', type=int, metavar='N', required=False, help='Specify the number of runs for the evaluation')
     parser.add_argument('--clean-start', dest='clean_start', action='store_true', help='Removes certificates and host configs causing them to be recreated')
 
     args = parser.parse_args()
-    if args.evaluate and not args.runs:
-        print("--runs is required when --evaluate is provided")
-        exit(1)
     host_count: int = args.hosts
     subscriber_count: int = host_count-1
     evaluation_option: str = args.evaluate
