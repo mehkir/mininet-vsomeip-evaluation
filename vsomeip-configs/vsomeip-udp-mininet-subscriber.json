@@ -24,6 +24,7 @@
             "unreliable" : [ 40000, 40002 ]
         }
     ],
+    "udp-receive-buffer-size" : "16777216",
     "routing" : "h2",
     "service-discovery" :
     {

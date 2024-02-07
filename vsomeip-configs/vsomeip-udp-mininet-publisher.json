@@ -48,6 +48,7 @@
             ]
         }
     ],
+    "udp-receive-buffer-size" : "16777216",
     "routing" : "h1",
     "service-discovery" :
     {
