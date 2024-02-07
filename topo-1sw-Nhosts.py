@@ -40,6 +40,8 @@ WITH_DNSSEC = 'WITH_DNSSEC'
 WITH_DANE = 'WITH_DANE'
 WITH_ENCRYPTION = 'WITH_ENCRYPTION'
 
+STD_CONDITION = False
+
 class simple_topo( Topo ):
     "Simple topology example."
 
@@ -144,13 +146,16 @@ def create_host_config(host, host_config: str):
         config = json.load(file)
     config['network'] = f'-{host_name}'
     config['unicast'] = unicast_ip
-    config['logging']['level'] = 'debug'
-    config['logging']['console'] = 'true'
-    config['logging']['file']['enable'] = 'true'
+    config['logging']['level'] = 'fatal'
+    config['logging']['console'] = 'false'
+    config['logging']['file']['enable'] = 'false'
     config['logging']['file']['path'] = f'/var/log/{host_name}.log'
     config['applications'][0]['name'] = host_name
     config['applications'][0]['id'] = host_id
     config['routing'] = f'{host_name}'
+
+    STD_CONDITION = (config['logging']['console'] == 'true' or config['logging']['file']['enable'] == 'true')
+
     with open(host_config, 'w') as file:
         json.dump(config, file, indent=4)
 
@@ -214,11 +219,17 @@ def reset_zone_files():
 
 def start_someip_subscriber_app(host):
     host_name = host.__str__()
-    host.cmd(f"env VSOMEIP_CONFIGURATION={PROJECT_PATH}/vsomeip-configs/{host_name}.json  VSOMEIP_APPLICATION_NAME={host_name} {PROJECT_PATH}/vsomeip/build/examples/my-subscriber &> /var/log/{host_name}.std &")
+    if STD_CONDITION:
+        host.cmd(f"env VSOMEIP_CONFIGURATION={PROJECT_PATH}/vsomeip-configs/{host_name}.json  VSOMEIP_APPLICATION_NAME={host_name} {PROJECT_PATH}/vsomeip/build/examples/my-subscriber &> /var/log/{host_name}.std &")
+    else:
+        host.cmd(f"env VSOMEIP_CONFIGURATION={PROJECT_PATH}/vsomeip-configs/{host_name}.json  VSOMEIP_APPLICATION_NAME={host_name} {PROJECT_PATH}/vsomeip/build/examples/my-subscriber &")
 
 def start_someip_publisher_app(host):
     host_name = host.__str__()
-    host.cmd(f"env VSOMEIP_CONFIGURATION={PROJECT_PATH}/vsomeip-configs/{host_name}.json  VSOMEIP_APPLICATION_NAME={host_name} {PROJECT_PATH}/vsomeip/build/examples/my-publisher &> /var/log/{host_name}.std &")
+    if STD_CONDITION:
+        host.cmd(f"env VSOMEIP_CONFIGURATION={PROJECT_PATH}/vsomeip-configs/{host_name}.json  VSOMEIP_APPLICATION_NAME={host_name} {PROJECT_PATH}/vsomeip/build/examples/my-publisher &> /var/log/{host_name}.std &")
+    else:
+        host.cmd(f"env VSOMEIP_CONFIGURATION={PROJECT_PATH}/vsomeip-configs/{host_name}.json  VSOMEIP_APPLICATION_NAME={host_name} {PROJECT_PATH}/vsomeip/build/examples/my-publisher &")
 
 def stop_subscriber_app(host):
     host.cmd("pkill my-subscriber")
@@ -264,8 +275,8 @@ def start_evaluation(total_evaluation_runs: int, evaluation_option: str, subscri
         publisher_initialized_file = Path(f"{PROJECT_PATH}/publisher-initialized")
         while not publisher_initialized_file.is_file():
             time.sleep(1)
-        # Give extra time for startup (seems making evaluation more stable)
-        time.sleep(3) 
+        # Give an extra second for startup (seems making evaluation more stable)
+        time.sleep(1) 
         print("Done.")
         print("Starting SOME/IP subscribers ... ")
         for host in net.hosts:
@@ -280,7 +291,7 @@ def start_evaluation(total_evaluation_runs: int, evaluation_option: str, subscri
         if return_code == 0:
             print("Done.")
             evaluation_run_end = time.time()
-            print(f"\n\t{current_run}/{total_evaluation_runs} evaluation run {evaluation_option} finished successfully and took {evaluation_run_end-evaluation_run_start} seconds\n")
+            print(f"RUN ({evaluation_option}): {current_run}/{total_evaluation_runs} ({evaluation_run_end-evaluation_run_start}s)")
             current_run += 1
         else:
             print(f"statistics writer failed with return code {return_code}")
@@ -299,12 +310,12 @@ def start_evaluation(total_evaluation_runs: int, evaluation_option: str, subscri
         cleanup()
         print("Done.")
     entire_evaluation_end = time.time()
-    print(f"\n\tThe entire evaluation took {entire_evaluation_end - entire_evaluation_start} seconds\n")
+    print(f"TOTAL TIME FOR OPTION {evaluation_option} | {total_evaluation_runs} RUN/S: {entire_evaluation_end - entire_evaluation_start}s")
 
 def start_debug(evaluation_option: str, subscriber_count: int, add_compile_definitions: str, net: Mininet, dns_host_name: str):
     # start statistics writer
     print("Starting statistics-writer ...")
-    subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(subscriber_count), f"{PROJECT_PATH}/statistic-results", evaluation_option])
+    subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(subscriber_count), f"{PROJECT_PATH}/statistic-results/1xpublisher-1xsubscriber", evaluation_option])
     print("Done.")
     # start dns server
     if WITH_DNSSEC in add_compile_definitions:
@@ -389,7 +400,6 @@ if __name__ == '__main__':
     create_publisher_config(net[PUBLISHER_HOST_NAME])
     create_service_certificate(net[PUBLISHER_HOST_NAME])
     set_client_certificate_paths(net[PUBLISHER_HOST_NAME], subscriber_count)
-    subprocess.run(f'touch /var/log/{PUBLISHER_HOST_NAME}.std', shell=True)
     for host in net.hosts:
         add_default_route(host)
         host_name = host.__str__()
@@ -401,7 +411,8 @@ if __name__ == '__main__':
             set_dns_server_ip(host, net[dns_host_name])
         if host_name != dns_host_name:
             set_subscriber_count_to_record(host, subscriber_count)
-        subprocess.run(f'touch /var/log/{host_name}.std', shell=True)
+        if STD_CONDITION:
+            subprocess.run(f'touch /var/log/{host_name}.std', shell=True)
     print("Done.")
     # Evaluate
     if args.evaluate and args.runs:
