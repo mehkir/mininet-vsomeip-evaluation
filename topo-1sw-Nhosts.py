@@ -214,11 +214,11 @@ def reset_zone_files():
 
 def start_someip_subscriber_app(host):
     host_name = host.__str__()
-    host.cmd(f"env VSOMEIP_CONFIGURATION={PROJECT_PATH}/vsomeip-configs/{host_name}.json  VSOMEIP_APPLICATION_NAME={host_name} {PROJECT_PATH}/vsomeip/build/examples/my-subscriber &")
+    host.cmd(f"env VSOMEIP_CONFIGURATION={PROJECT_PATH}/vsomeip-configs/{host_name}.json  VSOMEIP_APPLICATION_NAME={host_name} {PROJECT_PATH}/vsomeip/build/examples/my-subscriber &> /var/log/{host_name}.std &")
 
 def start_someip_publisher_app(host):
     host_name = host.__str__()
-    host.cmd(f"env VSOMEIP_CONFIGURATION={PROJECT_PATH}/vsomeip-configs/{host_name}.json  VSOMEIP_APPLICATION_NAME={host_name} {PROJECT_PATH}/vsomeip/build/examples/my-publisher &")
+    host.cmd(f"env VSOMEIP_CONFIGURATION={PROJECT_PATH}/vsomeip-configs/{host_name}.json  VSOMEIP_APPLICATION_NAME={host_name} {PROJECT_PATH}/vsomeip/build/examples/my-publisher &> /var/log/{host_name}.std &")
 
 def stop_subscriber_app(host):
     host.cmd("pkill my-subscriber")
@@ -242,6 +242,7 @@ def cleanup():
     subprocess.run(f"rm -f {PROJECT_PATH}/vsomeip-h*", shell=True)
     subprocess.run("rm -f /var/log/h*.log", shell=True)
     subprocess.run(f"rm -f {PROJECT_PATH}/publisher-initialized", shell=True)
+    subprocess.run(f"rm -f /var/log/h*.std", shell=True)
 
 def start_evaluation(total_evaluation_runs: int, evaluation_option: str, subscriber_count: int, add_compile_definitions: str, net: Mininet, dns_host_name: str):
     entire_evaluation_start = time.time()
@@ -388,6 +389,7 @@ if __name__ == '__main__':
     create_publisher_config(net[PUBLISHER_HOST_NAME])
     create_service_certificate(net[PUBLISHER_HOST_NAME])
     set_client_certificate_paths(net[PUBLISHER_HOST_NAME], subscriber_count)
+    subprocess.run(f'touch /var/log/{PUBLISHER_HOST_NAME}.std', shell=True)
     for host in net.hosts:
         add_default_route(host)
         host_name = host.__str__()
@@ -399,6 +401,7 @@ if __name__ == '__main__':
             set_dns_server_ip(host, net[dns_host_name])
         if host_name != dns_host_name:
             set_subscriber_count_to_record(host, subscriber_count)
+        subprocess.run(f'touch /var/log/{host_name}.std', shell=True)
     print("Done.")
     # Evaluate
     if args.evaluate and args.runs:
