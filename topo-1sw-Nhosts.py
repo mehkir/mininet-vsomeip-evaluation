@@ -129,6 +129,10 @@ def create_subscriber_config(host):
     if not Path(host_config).is_file():
         host.cmd(f'cp {subscriber_config_template} {host_config}')
         create_host_config(host, host_config)
+    
+    with open(host_config, 'r') as file:
+        config = json.load(file)
+    STD_CONDITION = (config['logging']['console'] == 'true' or config['logging']['file']['enable'] == 'true')
 
 def create_publisher_config(host):
     host_name = host.__str__()
@@ -137,6 +141,10 @@ def create_publisher_config(host):
     if not Path(host_config).is_file():
         host.cmd(f'cp {publisher_config_template} {host_config}')
         create_host_config(host, host_config)
+    
+    with open(host_config, 'r') as file:
+        config = json.load(file)
+    STD_CONDITION = (config['logging']['console'] == 'true' or config['logging']['file']['enable'] == 'true')
 
 def create_host_config(host, host_config: str):
     host_name = host.__str__()
@@ -153,8 +161,6 @@ def create_host_config(host, host_config: str):
     config['applications'][0]['name'] = host_name
     config['applications'][0]['id'] = host_id
     config['routing'] = f'{host_name}'
-
-    STD_CONDITION = (config['logging']['console'] == 'true' or config['logging']['file']['enable'] == 'true')
 
     with open(host_config, 'w') as file:
         json.dump(config, file, indent=4)
@@ -287,7 +293,7 @@ def start_evaluation(total_evaluation_runs: int, evaluation_option: str, subscri
         evaluation_run_start = time.time()
         # Wait for statistics writer
         print("Waiting until all statistics are contributed ... ")
-        return_code = statistics_writer_process.wait(timeout=5)
+        return_code = statistics_writer_process.wait(timeout=120)
         if return_code == 0:
             print("Done.")
             evaluation_run_end = time.time()
