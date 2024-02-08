@@ -366,7 +366,7 @@ if __name__ == '__main__':
     compile_definitions = {'A':'',
                            'B':f'{NO_SOMEIP_SD} {WITH_DNSSEC}',
                            'C':f'{WITH_SERVICE_AUTHENTICATION}',
-                           'D':f'{WITH_SERVICE_AUTHENTICATION} {NO_SOMEIP_SD} {WITH_DNSSEC} {WITH_DANE}',
+                           'D':f'{NO_SOMEIP_SD} {WITH_SERVICE_AUTHENTICATION} {WITH_DNSSEC} {WITH_DANE}',
                            'E':f'{WITH_SERVICE_AUTHENTICATION} {WITH_CLIENT_AUTHENTICATION}',
                            'F':f'{WITH_SERVICE_AUTHENTICATION} {WITH_CLIENT_AUTHENTICATION} {WITH_ENCRYPTION}',
                            'G':f'{WITH_SERVICE_AUTHENTICATION} {WITH_CLIENT_AUTHENTICATION} {WITH_DNSSEC} {WITH_DANE}',
