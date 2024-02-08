@@ -262,7 +262,7 @@ def start_evaluation(total_evaluation_runs: int, evaluation_option: str, subscri
         print(f"Starting {current_run}/{total_evaluation_runs} evaluation run {evaluation_option} ... ")
         # start statistics writer
         print("Starting statistics-writer ...")
-        statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(subscriber_count), f"{PROJECT_PATH}/statistic-results/1xpublisher-1xsubscriber", evaluation_option])
+        statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(subscriber_count), f"{PROJECT_PATH}/statistic-results", evaluation_option])
         print("Done.")
         # start dns server
         if WITH_DNSSEC in add_compile_definitions:
@@ -342,8 +342,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Starts vsomeip w/ or w/o security mechanisms and collects timestamps of handshake events')
     parser.add_argument('--hosts', type=int, metavar='N', required=True, choices=range(2,0xffff+1), help='Specify the number of hosts. (between 2 (inclusive) and 65536 (exclusive))')
     parser.add_argument('--evaluate', choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'], required=True, help="""A: vanilla (vsomeip as it is),
-                                                                                                                        B: w/ service authentication,
-                                                                                                                        C: w/ DNSSEC w/o SOME/IP SD,
+                                                                                                                        B: w/ DNSSEC w/o SOME/IP SD,
+                                                                                                                        C: w/ service authentication,
                                                                                                                         D: w/ service authentication + DNSSEC + DANE w/o SOME/IP SD,
                                                                                                                         E: w/ service and client authentiction,
                                                                                                                         F: w/ service and client authentiction + payload encryption,
@@ -358,8 +358,8 @@ if __name__ == '__main__':
     evaluation_option: str = args.evaluate
     total_evaluation_runs: int = args.runs
     compile_definitions = {'A':'',
-                           'B':f'{WITH_SERVICE_AUTHENTICATION}',
-                           'C':f'{NO_SOMEIP_SD} {WITH_DNSSEC}',
+                           'B':f'{NO_SOMEIP_SD} {WITH_DNSSEC}',
+                           'C':f'{WITH_SERVICE_AUTHENTICATION}',
                            'D':f'{WITH_SERVICE_AUTHENTICATION} {NO_SOMEIP_SD} {WITH_DNSSEC} {WITH_DANE}',
                            'E':f'{WITH_SERVICE_AUTHENTICATION} {WITH_CLIENT_AUTHENTICATION}',
                            'F':f'{WITH_SERVICE_AUTHENTICATION} {WITH_CLIENT_AUTHENTICATION} {WITH_ENCRYPTION}',
