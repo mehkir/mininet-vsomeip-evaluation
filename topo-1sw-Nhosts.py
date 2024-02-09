@@ -282,7 +282,7 @@ def start_evaluation(total_evaluation_runs: int, evaluation_option: str, subscri
         publisher_initialized_file = Path(f"{PROJECT_PATH}/publisher-initialized")
         while not publisher_initialized_file.is_file():
             time.sleep(1)
-        # Give an extra second for startup (seems making evaluation more stable)
+        # Give an extra second for startup
         time.sleep(1) 
         print("Done.")
         print("Starting SOME/IP subscribers ... ")
@@ -316,6 +316,8 @@ def start_evaluation(total_evaluation_runs: int, evaluation_option: str, subscri
             stop_dns_server(net[dns_host_name])
         cleanup()
         print("Done.")
+        # Give an extra second for remaining transmissions
+        time.sleep(1)
     entire_evaluation_end = time.time()
     print(f"TOTAL TIME FOR OPTION {evaluation_option} in {total_evaluation_runs} RUN/S: {entire_evaluation_end - entire_evaluation_start}s")
 
