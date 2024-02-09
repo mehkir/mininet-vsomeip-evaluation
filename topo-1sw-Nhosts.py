@@ -268,7 +268,8 @@ def start_evaluation(total_evaluation_runs: int, evaluation_option: str, subscri
         print(f"Starting {current_run}/{total_evaluation_runs} evaluation run {evaluation_option} ... ")
         # start statistics writer
         print("Starting statistics-writer ...")
-        statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(subscriber_count), f"{PROJECT_PATH}/statistic-results", evaluation_option])
+        statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(subscriber_count), f"{PROJECT_PATH}/statistic-results/{evaluation_option}-series", evaluation_option])
+        # statistics_writer_process = subprocess.Popen([f"{PROJECT_PATH}/vsomeip/build/implementation/statistics/statistics-writer-main", str(subscriber_count), f"{PROJECT_PATH}/statistic-results", evaluation_option])
         print("Done.")
         # start dns server
         if WITH_DNSSEC in add_compile_definitions:
