@@ -298,7 +298,7 @@ def start_evaluation(total_evaluation_runs: int, evaluation_option: str, subscri
         if return_code == 0:
             print("Done.")
             evaluation_run_end = time.time()
-            print(f"RUN ({evaluation_option}): {current_run}/{total_evaluation_runs} ({evaluation_run_end-evaluation_run_start}s)")
+            print(f"RUN ({evaluation_option}-{subscriber_count}): {current_run}/{total_evaluation_runs} ({evaluation_run_end-evaluation_run_start}s)")
             current_run += 1
         else:
             print(f"statistics writer failed with return code {return_code}")
