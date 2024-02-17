@@ -132,7 +132,8 @@ def create_subscriber_config(host):
     
     with open(host_config, 'r') as file:
         config = json.load(file)
-    STD_CONDITION = (config['logging']['console'] == 'true' or config['logging']['file']['enable'] == 'true')
+    global STD_CONDITION
+    STD_CONDITION = ((config['logging']['console'] == 'true') or (config['logging']['file']['enable'] == 'true'))
 
 def create_publisher_config(host):
     host_name = host.__str__()
@@ -144,7 +145,8 @@ def create_publisher_config(host):
     
     with open(host_config, 'r') as file:
         config = json.load(file)
-    STD_CONDITION = (config['logging']['console'] == 'true' or config['logging']['file']['enable'] == 'true')
+    global STD_CONDITION
+    STD_CONDITION = ((config['logging']['console'] == 'true') or (config['logging']['file']['enable'] == 'true'))
 
 def create_host_config(host, host_config: str):
     host_name = host.__str__()
