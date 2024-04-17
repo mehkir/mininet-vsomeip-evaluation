@@ -360,7 +360,7 @@ if __name__ == '__main__':
                                                                                                                         F: w/ service and client authentiction + payload encryption,
                                                                                                                         G: w/ service and client authentication + DNSSEC + DANE,
                                                                                                                         H: w/ service and client authentication + DNSSEC + DANE + payload encryption""")
-    parser.add_argument('--runs', type=int, metavar='N', required=False, help='Specify the number of runs for the evaluation')
+    parser.add_argument('--runs', type=int, metavar='N', required=False, help='Specify the number of runs for the evaluation or omit this parameter to start the interactive mode with mininet CLI')
     parser.add_argument('--clean-start', dest='clean_start', action='store_true', help='Removes certificates and host configs causing them to be recreated')
 
     args = parser.parse_args()
