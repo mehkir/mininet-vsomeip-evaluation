@@ -941,3 +941,15 @@ E-2-50:	3:25.23 real,	402.97 user,	26.07 sys
 F-2-50:	3:25.91 real,	406.10 user,	26.48 sys
 G-2-50:	3:28.48 real,	411.89 user,	26.84 sys
 H-2-50:	3:28.67 real,	411.18 user,	26.72 sys
+Command terminated by signal 2
+A-2-50:	1:55.86 real,	431.31 user,	31.85 sys
+A-2-50:	2:32.68 real,	29.79 user,	90.23 sys
+B-2-50:	3:26.99 real,	424.16 user,	27.24 sys
+C-2-50:	3:23.90 real,	437.06 user,	117.01 sys
+D-2-50:	3:25.53 real,	415.12 user,	25.89 sys
+E-2-50:	3:24.48 real,	434.52 user,	116.06 sys
+F-2-50:	3:24.87 real,	438.35 user,	114.96 sys
+G-2-50:	33:08.00 real,	432.90 user,	121.26 sys
+H-2-50:	3:27.88 real,	441.07 user,	120.80 sys
+G-2-50:	3:30.11 real,	481.14 user,	123.48 sys
+H-2-50:	3:27.41 real,	444.84 user,	118.67 sys
